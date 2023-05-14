@@ -1,7 +1,8 @@
 #include <TM1637Display.h>
-#include <Button2.h>
-#include <ESPRotary.h>
+#include <ec11.hpp>
 #include <LowPower.h>
+
+using namespace a21;
 
 const byte ROTARY_PIN_A = 2;
 const byte ROTARY_PIN_B = 3;
@@ -39,8 +40,7 @@ enum PowerState {
 };
 
 TM1637Display display = TM1637Display(CLK, DIO);
-ESPRotary rotaryEncoder;
-Button2 button;
+EC11 rotaryEncoder;
 
 ProgramState state;
 PowerState powerState;
@@ -66,11 +66,12 @@ void setup() {
   pinMode(LED_G, OUTPUT);
   pinMode(LED_B, OUTPUT);
 
+  pinMode(ROTARY_PIN_A, INPUT_PULLUP);
+  pinMode(ROTARY_PIN_B, INPUT_PULLUP);
+
   // Set up rotary encoder
-  rotaryEncoder.begin(ROTARY_PIN_A, ROTARY_PIN_B, ROTARY_CLICKS_PER_STEP);
-  rotaryEncoder.setChangedHandler(rotaryChangeCallback);
-  button.begin(ROTARY_PIN_BUTTON);
-  button.setTapHandler(rotaryPressCallback);
+  attachInterrupt(digitalPinToInterrupt(ROTARY_PIN_A), rotaryChangeCallback, CHANGE);
+  attachInterrupt(digitalPinToInterrupt(ROTARY_PIN_B), rotaryChangeCallback, CHANGE);
 
   // Initialize program and power state
   state = STATE_CHARGING;
@@ -78,21 +79,11 @@ void setup() {
   answer = 0;
 }
 
-void rotaryChangeCallback(ESPRotary& r) {
-  Serial.print("Rotary changed: ");
-  Serial.println(r.directionToString(r.getDirection()));
-  if (r.getDirection() == rotary_direction::right) {
-    answer++;
-  } else if (r.getDirection() == rotary_direction::left) {
-    answer--;
-  } else {
-    // Direction is undefined, do nothing
-  }
-
-  display.showNumberDec(answer, true);
+void rotaryChangeCallback() {
+  rotaryEncoder.checkPins(digitalRead(ROTARY_PIN_A), digitalRead(ROTARY_PIN_B));
 }
 
-void rotaryPressCallback(Button2& btn) {
+void rotaryPressCallback() {
   Serial.println("Rotary pressed");
   answer *= 10;
 
@@ -108,11 +99,24 @@ void loop() {
   Serial.print("Measured voltage: ");
   Serial.println(voltage);
   Serial.flush();
-
-  rotaryEncoder.loop();
-  button.loop();
-
+  
   delay(1000);
+
+  EC11Event e;
+  if (rotaryEncoder.read(&e)) {
+
+    // OK, got an event waiting to be handled.
+    
+    if (e.type == EC11Event::StepCW) {
+      answer += e.count;
+    } else {
+      answer -= e.count;
+    }
+    Serial.print("Answer changed, new value: ");
+    Serial.println(answer);
+    display.showNumberDec(answer, true);
+  }    
+
   //LowPower.powerDown(SLEEP_1S, ADC_ON, BOD_OFF);
 }
 
