@@ -1,14 +1,10 @@
 #include <TM1637Display.h>
-#include <ec11.hpp>
+#include <FR_RotaryEncoder.h>
 #include <LowPower.h>
 
-using namespace a21;
-
-const byte ROTARY_PIN_A = 2;
-const byte ROTARY_PIN_B = 3;
-const byte ROTARY_PIN_BUTTON = 12;
-
-const byte ROTARY_CLICKS_PER_STEP = 4;
+const byte ROTARY_PIN_A = 3;
+const byte ROTARY_PIN_B = 4;
+const byte ROTARY_PIN_BUTTON = 2;
 
 const uint8_t CLK = 7;
 const uint8_t DIO = 8;
@@ -40,11 +36,11 @@ enum PowerState {
 };
 
 TM1637Display display = TM1637Display(CLK, DIO);
-EC11 rotaryEncoder;
+RotaryEncoder rotaryEncoder(ROTARY_PIN_A, ROTARY_PIN_B, ROTARY_PIN_BUTTON);
 
 ProgramState state;
 PowerState powerState;
-int answer;
+volatile int answer;
 uint8_t INITIAL_SEGMENTS[4] = { SEG_G, SEG_G, SEG_G, SEG_G };
 
 void setup() {
@@ -68,10 +64,15 @@ void setup() {
 
   pinMode(ROTARY_PIN_A, INPUT_PULLUP);
   pinMode(ROTARY_PIN_B, INPUT_PULLUP);
+  pinMode(ROTARY_PIN_BUTTON, INPUT_PULLUP);
 
   // Set up rotary encoder
+  rotaryEncoder.enableInternalRotaryPullups();
+  rotaryEncoder.enableInternalSwitchPullup();
+  rotaryEncoder.setRotaryLimits(0, 9, false);
+
   attachInterrupt(digitalPinToInterrupt(ROTARY_PIN_A), rotaryChangeCallback, CHANGE);
-  attachInterrupt(digitalPinToInterrupt(ROTARY_PIN_B), rotaryChangeCallback, CHANGE);
+  attachInterrupt(digitalPinToInterrupt(ROTARY_PIN_BUTTON), rotaryPressCallback, CHANGE);
 
   // Initialize program and power state
   state = STATE_CHARGING;
@@ -80,12 +81,51 @@ void setup() {
 }
 
 void rotaryChangeCallback() {
-  rotaryEncoder.checkPins(digitalRead(ROTARY_PIN_A), digitalRead(ROTARY_PIN_B));
+  rotaryEncoder.rotaryUpdate();
+
+  int position = rotaryEncoder.getPosition();
+
+  // Replace last digit of current answer with rotary's position.
+  answer = (int)(answer / 10)*10 + position;
+
+  display.showNumberDec(answer, true);
+
+  Serial.print("Rotary updated, position: ");
+  Serial.print(position);
+  Serial.print(", answer: ");
+  Serial.print(answer);
+  Serial.print(", direction: ");
+  printRotationalDirection(rotaryEncoder.getDirection());
+  Serial.println();
+  Serial.flush();
+}
+
+void printRotationalDirection(int direction) {
+  switch(direction) {
+    case rotaryEncoder.CW:
+      Serial.print("CW");
+      break;
+    case rotaryEncoder.CCW:
+      Serial.print("CCW");
+      break;
+    case rotaryEncoder.NOT_MOVED:
+      Serial.print("NOT_MOVED");
+      break;
+    default:
+      Serial.print("Unrecognized direction of rotation");  
+  } 
 }
 
 void rotaryPressCallback() {
+  rotaryEncoder.switchUpdate();
+
   Serial.println("Rotary pressed");
-  answer *= 10;
+
+  int position = rotaryEncoder.getPosition();
+  if (answer < 1000) {
+    answer *= 10;
+    rotaryEncoder.setPosition(0);
+  }
 
   display.showNumberDec(answer, true);
 }
@@ -96,27 +136,13 @@ void loop() {
   processState(voltage);
 
   // TODO: Remove after debugging
-  Serial.print("Measured voltage: ");
-  Serial.println(voltage);
+  // Serial.print("Measured voltage: ");
+  // Serial.println(voltage);
+  Serial.print("Rotary position: ");
+  Serial.println(rotaryEncoder.getPosition());
   Serial.flush();
   
   delay(1000);
-
-  EC11Event e;
-  if (rotaryEncoder.read(&e)) {
-
-    // OK, got an event waiting to be handled.
-    
-    if (e.type == EC11Event::StepCW) {
-      answer += e.count;
-    } else {
-      answer -= e.count;
-    }
-    Serial.print("Answer changed, new value: ");
-    Serial.println(answer);
-    display.showNumberDec(answer, true);
-  }    
-
   //LowPower.powerDown(SLEEP_1S, ADC_ON, BOD_OFF);
 }
 
