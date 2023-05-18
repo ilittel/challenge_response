@@ -20,6 +20,8 @@ const float CHARGE_THRESHOLD_GREEN = 5.1;
 const float DISCHARGE_THRESHOLD_YELLOW = 4.0;
 const float DISCHARGE_THRESHOLD_RED = 3.5;
 
+const unsigned long LONG_PRESS_DELAY_MS = 500;
+
 enum ProgramState {
  STATE_CHARGING,
  STATE_DISPLAYING_CHALLENGE,
@@ -41,6 +43,10 @@ RotaryEncoder rotaryEncoder(ROTARY_PIN_A, ROTARY_PIN_B, ROTARY_PIN_BUTTON);
 ProgramState state;
 PowerState powerState;
 volatile int answer;
+volatile int lastDigitValue;
+volatile int lastSwitchState;
+volatile unsigned long lastPressedTime;
+
 uint8_t INITIAL_SEGMENTS[4] = { SEG_G, SEG_G, SEG_G, SEG_G };
 
 void setup() {
@@ -70,7 +76,7 @@ void setup() {
   rotaryEncoder.enableInternalRotaryPullups();
   rotaryEncoder.enableInternalSwitchPullup();
   rotaryEncoder.setRotaryLimits(0, 9, false);
-  rotaryEncoder.setSwitchDebounceDelay(5);
+  //rotaryEncoder.setSwitchDebounceDelay(5);
 
   attachInterrupt(digitalPinToInterrupt(ROTARY_PIN_A), rotaryChangeCallback, CHANGE);
   attachInterrupt(digitalPinToInterrupt(ROTARY_PIN_BUTTON), rotaryPressCallback, CHANGE);
@@ -79,10 +85,32 @@ void setup() {
   state = STATE_CHARGING;
   powerState = RED;
   answer = 0;
+  lastDigitValue = 0;
+  lastSwitchState = rotaryEncoder.SW_OFF;
+  lastPressedTime = 0;
 }
 
 void rotaryChangeCallback() {
   rotaryEncoder.rotaryUpdate();
+
+  int currentPosition = rotaryEncoder.getPosition();
+  if (lastDigitValue != currentPosition) {
+    lastDigitValue = currentPosition;
+
+    int direction = rotaryEncoder.getDirection();
+
+    Serial.print("Rotary updated, position: ");
+    Serial.print(currentPosition);
+    Serial.print(", direction: ");
+    printRotationalDirection(direction);
+    Serial.println();
+    Serial.flush();
+
+    // Replace last digit of current answer with rotary's position.
+    answer = (int)(answer / 10)*10 + lastDigitValue;
+
+    display.showNumberDec(answer, true);
+  }
 }
 
 void printRotationalDirection(int direction) {
@@ -103,51 +131,38 @@ void printRotationalDirection(int direction) {
 
 void rotaryPressCallback() {
   rotaryEncoder.switchUpdate();
-}
 
-void loop() {
-  int position = rotaryEncoder.getPosition();
-  int direction = rotaryEncoder.getDirection();
+  int currentSwitchState = rotaryEncoder.getSwitchState();
+  if (lastSwitchState != currentSwitchState) {
+    lastSwitchState = currentSwitchState;
 
-  rotaryEncoder.switchUpdate();
+    if (currentSwitchState == rotaryEncoder.SW_ON) {
+      Serial.println("Rotary pressed");
+      lastPressedTime = millis();
 
-  // Replace last digit of current answer with rotary's position.
-  answer = (int)(answer / 10)*10 + position;
+      int position = rotaryEncoder.getPosition();
+      if (answer < 1000) {
+        answer *= 10;
+      }
 
-  display.showNumberDec(answer, true);
-
-  if (direction != rotaryEncoder.NOT_MOVED) {
-    Serial.print("Rotary updated, position: ");
-    Serial.print(position);
-    Serial.print(", answer: ");
-    Serial.print(answer);
-    Serial.print(", direction: ");
-    printRotationalDirection(direction);
-    Serial.println();
-  }
-
-  int switchState = rotaryEncoder.getSwitchState();
-  if (switchState == rotaryEncoder.SW_ON) {
-    Serial.println("Rotary pressed");
-
-    int position = rotaryEncoder.getPosition();
-    if (answer < 1000) {
-      answer *= 10;
       rotaryEncoder.setPosition(0);
+      display.showNumberDec(answer, true);
+    } else if (currentSwitchState == rotaryEncoder.SW_OFF) {
+      Serial.println("Rotary unpressed");
+
+      unsigned long unpressedTime = millis();
+      if (unpressedTime - lastPressedTime > LONG_PRESS_DELAY_MS) {
+        answer = 0;
+        rotaryEncoder.setPosition(0);
+        display.showNumberDec(answer, true);
+      }
     }
-
-    rotaryEncoder.set
-    display.showNumberDec(answer, true);
-  } else if (switchState == rotaryEncoder.SW_LONG) {
-    Serial.println("Rotary long pressed");
-
-    answer = 0;
-    rotaryEncoder.setPosition(0);
-    display.showNumberDec(answer, true);
   }
 
   Serial.flush();
+}
 
+void loop() {
   float voltage = readVoltage();
 
   processState(voltage);
@@ -159,7 +174,7 @@ void loop() {
   // Serial.println(rotaryEncoder.getPosition());
   // Serial.flush();
   
-  //delay(1000);
+  delay(1000);
   //LowPower.powerDown(SLEEP_1S, ADC_ON, BOD_OFF);
 }
 
