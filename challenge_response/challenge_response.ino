@@ -70,6 +70,7 @@ void setup() {
   rotaryEncoder.enableInternalRotaryPullups();
   rotaryEncoder.enableInternalSwitchPullup();
   rotaryEncoder.setRotaryLimits(0, 9, false);
+  rotaryEncoder.setSwitchDebounceDelay(5);
 
   attachInterrupt(digitalPinToInterrupt(ROTARY_PIN_A), rotaryChangeCallback, CHANGE);
   attachInterrupt(digitalPinToInterrupt(ROTARY_PIN_BUTTON), rotaryPressCallback, CHANGE);
@@ -82,22 +83,6 @@ void setup() {
 
 void rotaryChangeCallback() {
   rotaryEncoder.rotaryUpdate();
-
-  int position = rotaryEncoder.getPosition();
-
-  // Replace last digit of current answer with rotary's position.
-  answer = (int)(answer / 10)*10 + position;
-
-  display.showNumberDec(answer, true);
-
-  Serial.print("Rotary updated, position: ");
-  Serial.print(position);
-  Serial.print(", answer: ");
-  Serial.print(answer);
-  Serial.print(", direction: ");
-  printRotationalDirection(rotaryEncoder.getDirection());
-  Serial.println();
-  Serial.flush();
 }
 
 void printRotationalDirection(int direction) {
@@ -118,19 +103,51 @@ void printRotationalDirection(int direction) {
 
 void rotaryPressCallback() {
   rotaryEncoder.switchUpdate();
-
-  Serial.println("Rotary pressed");
-
-  int position = rotaryEncoder.getPosition();
-  if (answer < 1000) {
-    answer *= 10;
-    rotaryEncoder.setPosition(0);
-  }
-
-  display.showNumberDec(answer, true);
 }
 
 void loop() {
+  int position = rotaryEncoder.getPosition();
+  int direction = rotaryEncoder.getDirection();
+
+  rotaryEncoder.switchUpdate();
+
+  // Replace last digit of current answer with rotary's position.
+  answer = (int)(answer / 10)*10 + position;
+
+  display.showNumberDec(answer, true);
+
+  if (direction != rotaryEncoder.NOT_MOVED) {
+    Serial.print("Rotary updated, position: ");
+    Serial.print(position);
+    Serial.print(", answer: ");
+    Serial.print(answer);
+    Serial.print(", direction: ");
+    printRotationalDirection(direction);
+    Serial.println();
+  }
+
+  int switchState = rotaryEncoder.getSwitchState();
+  if (switchState == rotaryEncoder.SW_ON) {
+    Serial.println("Rotary pressed");
+
+    int position = rotaryEncoder.getPosition();
+    if (answer < 1000) {
+      answer *= 10;
+      rotaryEncoder.setPosition(0);
+    }
+
+    rotaryEncoder.set
+    display.showNumberDec(answer, true);
+  } else if (switchState == rotaryEncoder.SW_LONG) {
+    Serial.println("Rotary long pressed");
+
+    answer = 0;
+    rotaryEncoder.setPosition(0);
+    display.showNumberDec(answer, true);
+  }
+
+  Serial.flush();
+
   float voltage = readVoltage();
 
   processState(voltage);
@@ -138,11 +155,11 @@ void loop() {
   // TODO: Remove after debugging
   // Serial.print("Measured voltage: ");
   // Serial.println(voltage);
-  Serial.print("Rotary position: ");
-  Serial.println(rotaryEncoder.getPosition());
-  Serial.flush();
+  // Serial.print("Rotary position: ");
+  // Serial.println(rotaryEncoder.getPosition());
+  // Serial.flush();
   
-  delay(1000);
+  //delay(1000);
   //LowPower.powerDown(SLEEP_1S, ADC_ON, BOD_OFF);
 }
 
