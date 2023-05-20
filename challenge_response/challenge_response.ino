@@ -20,15 +20,11 @@ const float CHARGE_THRESHOLD_GREEN = 5.1;
 const float DISCHARGE_THRESHOLD_YELLOW = 4.0;
 const float DISCHARGE_THRESHOLD_RED = 3.5;
 
-const unsigned long LONG_PRESS_DELAY_MS = 500;
-
 enum ProgramState {
  STATE_CHARGING,
  STATE_DISPLAYING_CHALLENGE,
  STATE_ENTERING_RESPONSE,
- STATE_ACTIVATING_SOLENOID,
- STATE_DISPLAYING_ERROR,
- STATE_DISPLAYING_UNLOCKED
+ STATE_PROCESSING_RESPONSE
 };
 
 enum PowerState {
@@ -40,12 +36,15 @@ enum PowerState {
 TM1637Display display = TM1637Display(CLK, DIO);
 RotaryEncoder rotaryEncoder(ROTARY_PIN_A, ROTARY_PIN_B, ROTARY_PIN_BUTTON);
 
-ProgramState state;
 PowerState powerState;
-volatile int answer;
-volatile int lastDigitValue;
-volatile int lastSwitchState;
-volatile unsigned long lastPressedTime;
+unsigned int challenge;
+unsigned int correctAnswer;
+
+volatile ProgramState programState;
+volatile unsigned int digitsEntered;
+volatile unsigned int answer;
+volatile unsigned int lastDigitValue;
+volatile RotaryEncoder::SwitchState lastSwitchState;
 
 uint8_t INITIAL_SEGMENTS[4] = { SEG_G, SEG_G, SEG_G, SEG_G };
 
@@ -56,8 +55,6 @@ void setup() {
   // Set up display
   display.clear();  
   display.setBrightness(7);
-
-  display.setSegments(INITIAL_SEGMENTS);
 
   // Set up voltage reading
   analogReference(INTERNAL);
@@ -81,38 +78,46 @@ void setup() {
   attachInterrupt(digitalPinToInterrupt(ROTARY_PIN_A), rotaryChangeCallback, CHANGE);
   attachInterrupt(digitalPinToInterrupt(ROTARY_PIN_BUTTON), rotaryPressCallback, CHANGE);
 
-  // Initialize program and power state
-  state = STATE_CHARGING;
+  // Initialize power and program state
   powerState = RED;
+  programState = STATE_CHARGING;
+
+  challenge = 4321; // TODO
+  correctAnswer = 1234; // TODO
+
+  digitsEntered = 0;
   answer = 0;
   lastDigitValue = 0;
   lastSwitchState = rotaryEncoder.SW_OFF;
-  lastPressedTime = 0;
 }
 
 void rotaryChangeCallback() {
   rotaryEncoder.rotaryUpdate();
 
-  int currentPosition = rotaryEncoder.getPosition();
-  if (lastDigitValue != currentPosition) {
-    lastDigitValue = currentPosition;
+  if (programState == STATE_ENTERING_RESPONSE) {
+    unsigned int currentPosition = (unsigned int)rotaryEncoder.getPosition();
+    if (lastDigitValue != currentPosition) {
+      lastDigitValue = currentPosition;
 
-    int direction = rotaryEncoder.getDirection();
+      int direction = rotaryEncoder.getDirection();
 
-    Serial.print("Rotary updated, position: ");
-    Serial.print(currentPosition);
-    Serial.print(", direction: ");
-    printRotationalDirection(direction);
-    Serial.println();
-    Serial.flush();
+      // TODO: Remove after debugging
+      Serial.print("Rotary updated, position: ");
+      Serial.print(currentPosition);
+      Serial.print(", direction: ");
+      printRotationalDirection(direction);
+      Serial.println();
+      Serial.flush();
 
-    // Replace last digit of current answer with rotary's position.
-    answer = (int)(answer / 10)*10 + lastDigitValue;
+      // Replace last digit of current answer with rotary's position.
+      answer = (answer / 10)*10 + lastDigitValue;
 
-    display.showNumberDec(answer, true);
+      display.showNumberDec(answer, true);
+    }
   }
 }
 
+// TODO: Remove after debugging
 void printRotationalDirection(int direction) {
   switch(direction) {
     case rotaryEncoder.CW:
@@ -132,40 +137,37 @@ void printRotationalDirection(int direction) {
 void rotaryPressCallback() {
   rotaryEncoder.switchUpdate();
 
-  int currentSwitchState = rotaryEncoder.getSwitchState();
-  if (lastSwitchState != currentSwitchState) {
-    lastSwitchState = currentSwitchState;
+  if (programState == STATE_ENTERING_RESPONSE) {
+    RotaryEncoder::SwitchState currentSwitchState = (RotaryEncoder::SwitchState)rotaryEncoder.getSwitchState();
+    if (lastSwitchState != currentSwitchState) {
+      lastSwitchState = currentSwitchState;
 
-    if (currentSwitchState == rotaryEncoder.SW_ON) {
-      Serial.println("Rotary pressed");
-      lastPressedTime = millis();
+      if (currentSwitchState == rotaryEncoder.SW_ON) {
+        Serial.println("Rotary pressed");
 
-      int position = rotaryEncoder.getPosition();
-      if (answer < 1000) {
-        answer *= 10;
-      }
+        int position = rotaryEncoder.getPosition();
+        digitsEntered++;
+        if (digitsEntered < 4) {
+          answer *= 10;
+        }
 
-      rotaryEncoder.setPosition(0);
-      display.showNumberDec(answer, true);
-    } else if (currentSwitchState == rotaryEncoder.SW_OFF) {
-      Serial.println("Rotary unpressed");
-
-      unsigned long unpressedTime = millis();
-      if (unpressedTime - lastPressedTime > LONG_PRESS_DELAY_MS) {
-        answer = 0;
         rotaryEncoder.setPosition(0);
         display.showNumberDec(answer, true);
+      } else if (currentSwitchState == rotaryEncoder.SW_OFF) {
+        Serial.println("Rotary unpressed");
       }
+
+      Serial.flush();
     }
   }
-
-  Serial.flush();
 }
 
 void loop() {
   float voltage = readVoltage();
 
-  processState(voltage);
+  updatePowerState(voltage);
+
+  updateProgramState(voltage);
 
   // TODO: Remove after debugging
   // Serial.print("Measured voltage: ");
@@ -191,27 +193,7 @@ float readVoltage() {
   return sensorValue * (1.1 / 1023.0) * VOLTAGE_DIVIDER_FACTOR;
 }
 
-void processState(float voltage) {
-  setPowerState(voltage);
-
-  switch (powerState) {
-    case STATE_CHARGING:
-      if (voltage > CHARGE_THRESHOLD_GREEN) {
-        display.showNumberDec(0, true);
-        state = STATE_ENTERING_RESPONSE;
-      }
-    break;
-    case STATE_ENTERING_RESPONSE:
-      // Hier gebleven
-    break;
-    default:
-    break;
-  }
-
-  updatePowerIndicator();
-}
-
-void setPowerState(float voltage) {
+void updatePowerState(float voltage) {
   switch (powerState) {
     case RED:
       if (voltage > CHARGE_THRESHOLD_YELLOW) {
@@ -233,6 +215,8 @@ void setPowerState(float voltage) {
     default:
     break;
   }
+
+  updatePowerIndicator();
 }
 
 void updatePowerIndicator() {
@@ -253,8 +237,70 @@ void updatePowerIndicator() {
       analogWrite(LED_B, 0);
     break;
     default:
-      Serial.println("ERROR: Invalid state value in updatePowerIndicator()");
+      Serial.print("ERROR: unhandled power state value: ");
+      Serial.println(powerState);
       Serial.flush();
     break;
   }
+}
+
+void updateProgramState(float voltage) {
+  switch (programState) {
+    case STATE_CHARGING:
+      if (voltage > CHARGE_THRESHOLD_GREEN) {
+        setProgramState(STATE_DISPLAYING_CHALLENGE);
+      }
+    break;
+    case STATE_DISPLAYING_CHALLENGE:
+      if (rotaryEncoder.getPosition() > 0) {
+        setProgramState(STATE_ENTERING_RESPONSE);
+      }
+    break;
+    case STATE_ENTERING_RESPONSE:
+      if (digitsEntered > 3) {
+        setProgramState(STATE_PROCESSING_RESPONSE);
+      }
+    break;
+    case STATE_PROCESSING_RESPONSE:
+      if (answer == correctAnswer) {
+        activateSolenoid();
+      } else {
+        setProgramState(STATE_ENTERING_RESPONSE);
+      }
+    break;
+    default:
+      Serial.print("Error: unhandled state value: ");
+      Serial.println(programState);
+      Serial.flush();
+    break;
+  }
+}
+
+void setProgramState(ProgramState newState) {
+  switch(newState) {
+    case STATE_DISPLAYING_CHALLENGE:
+      display.showNumberDec(challenge);
+    break;
+    case STATE_ENTERING_RESPONSE:
+      digitsEntered = 0;
+      answer = 0;
+      display.setSegments(INITIAL_SEGMENTS);
+    break;
+    case STATE_PROCESSING_RESPONSE:
+      // Do nothing
+    break;
+    default:
+      Serial.print("Error: invalid new state value: ");
+      Serial.println(newState);
+      return;
+    break;
+  }
+
+  programState = newState;  
+}
+
+void activateSolenoid() {
+  Serial.println("Activating solenoid");
+  Serial.flush();
+  // TODO
 }
