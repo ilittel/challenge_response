@@ -53,8 +53,7 @@ void setup() {
   Serial.begin(9600); // TODO: Remove after debugging
 
   // Set up display
-  display.clear();  
-  display.setBrightness(7);
+  display.setBrightness(1);
 
   // Set up voltage reading
   analogReference(INTERNAL);
@@ -73,17 +72,13 @@ void setup() {
   rotaryEncoder.enableInternalRotaryPullups();
   rotaryEncoder.enableInternalSwitchPullup();
   rotaryEncoder.setRotaryLimits(0, 9, false);
-  //rotaryEncoder.setSwitchDebounceDelay(5);
 
   attachInterrupt(digitalPinToInterrupt(ROTARY_PIN_A), rotaryChangeCallback, CHANGE);
   attachInterrupt(digitalPinToInterrupt(ROTARY_PIN_BUTTON), rotaryPressCallback, CHANGE);
 
+  setProgramState(STATE_CHARGING);
   // Initialize power and program state
   powerState = RED;
-  programState = STATE_CHARGING;
-
-  challenge = 4321; // TODO
-  correctAnswer = 1234; // TODO
 
   digitsEntered = 0;
   answer = 0;
@@ -110,9 +105,10 @@ void rotaryChangeCallback() {
       Serial.flush();
 
       // Replace last digit of current answer with rotary's position.
-      answer = (answer / 10)*10 + lastDigitValue;
+      answer = ((unsigned int)(answer / 10)*10) + lastDigitValue;
 
-      display.showNumberDec(answer, true);
+      //display.showNumberDec(answer, true);
+      showAnswer();
     }
   }
 }
@@ -152,7 +148,8 @@ void rotaryPressCallback() {
         }
 
         rotaryEncoder.setPosition(0);
-        display.showNumberDec(answer, true);
+        //display.showNumberDec(answer, true);
+        showAnswer();
       } else if (currentSwitchState == rotaryEncoder.SW_OFF) {
         Serial.println("Rotary unpressed");
       }
@@ -264,6 +261,7 @@ void updateProgramState(float voltage) {
     case STATE_PROCESSING_RESPONSE:
       if (answer == correctAnswer) {
         activateSolenoid();
+        setProgramState(STATE_CHARGING);
       } else {
         setProgramState(STATE_ENTERING_RESPONSE);
       }
@@ -278,13 +276,18 @@ void updateProgramState(float voltage) {
 
 void setProgramState(ProgramState newState) {
   switch(newState) {
+    case STATE_CHARGING:
+      challenge = 4321; // TODO
+      correctAnswer = 1234; // TODO
+      display.clear();  
+    break;
     case STATE_DISPLAYING_CHALLENGE:
       display.showNumberDec(challenge);
     break;
     case STATE_ENTERING_RESPONSE:
       digitsEntered = 0;
       answer = 0;
-      display.setSegments(INITIAL_SEGMENTS);
+      showAnswer();
     break;
     case STATE_PROCESSING_RESPONSE:
       // Do nothing
@@ -297,6 +300,25 @@ void setProgramState(ProgramState newState) {
   }
 
   programState = newState;  
+}
+
+void showAnswer() {
+  uint8_t segments[4];
+
+  // Show between 1 and 4 digits, as we also need to show the digit that is being entered.
+  const int digitsToShow = digitsEntered < 4 ? digitsEntered + 1 : 4;
+
+  int partialNumber = answer;
+  for (int index = 0; index <= 4 - digitsToShow; index++) {
+    segments[index] = SEG_D;
+  }
+
+  for (int index = 3; index >= 4 - digitsToShow; index--) {
+    segments[index] = display.encodeDigit(partialNumber % 10);
+    partialNumber = (int)(partialNumber / 10);
+  }
+
+  display.setSegments(segments);
 }
 
 void activateSolenoid() {
