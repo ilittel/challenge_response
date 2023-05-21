@@ -41,7 +41,7 @@ unsigned int challenge;
 unsigned int correctAnswer;
 
 volatile ProgramState programState;
-volatile unsigned int digitsEntered;
+volatile uint8_t digitsEntered;
 volatile unsigned int answer;
 volatile unsigned int lastDigitValue;
 volatile RotaryEncoder::SwitchState lastSwitchState;
@@ -107,7 +107,6 @@ void rotaryChangeCallback() {
       // Replace last digit of current answer with rotary's position.
       answer = ((unsigned int)(answer / 10)*10) + lastDigitValue;
 
-      //display.showNumberDec(answer, true);
       showAnswer();
     }
   }
@@ -141,14 +140,12 @@ void rotaryPressCallback() {
       if (currentSwitchState == rotaryEncoder.SW_ON) {
         Serial.println("Rotary pressed");
 
-        int position = rotaryEncoder.getPosition();
         digitsEntered++;
         if (digitsEntered < 4) {
           answer *= 10;
         }
 
         rotaryEncoder.setPosition(0);
-        //display.showNumberDec(answer, true);
         showAnswer();
       } else if (currentSwitchState == rotaryEncoder.SW_OFF) {
         Serial.println("Rotary unpressed");
@@ -306,19 +303,23 @@ void showAnswer() {
   uint8_t segments[4];
 
   // Show between 1 and 4 digits, as we also need to show the digit that is being entered.
-  const int digitsToShow = digitsEntered < 4 ? digitsEntered + 1 : 4;
+  const uint8_t digitsToShow = digitsEntered < 4 ? digitsEntered + 1 : 4;
 
-  int partialNumber = answer;
   for (int index = 0; index <= 4 - digitsToShow; index++) {
     segments[index] = SEG_D;
   }
 
+  unsigned int partialNumber = answer;
+
   for (int index = 3; index >= 4 - digitsToShow; index--) {
-    segments[index] = display.encodeDigit(partialNumber % 10);
-    partialNumber = (int)(partialNumber / 10);
+    uint8_t digit = (uint8_t)(partialNumber % 10);
+    segments[index] = display.encodeDigit(digit);
+
+    partialNumber = (unsigned int)(partialNumber / 10);
   }
 
   display.setSegments(segments);
+
 }
 
 void activateSolenoid() {
