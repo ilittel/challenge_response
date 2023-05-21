@@ -43,14 +43,15 @@ unsigned int correctAnswer;
 volatile ProgramState programState;
 volatile uint8_t digitsEntered;
 volatile unsigned int answer;
-volatile unsigned int lastDigitValue;
+volatile uint8_t lastDigitValue;
 volatile RotaryEncoder::SwitchState lastSwitchState;
 
 uint8_t INITIAL_SEGMENTS[4] = { SEG_G, SEG_G, SEG_G, SEG_G };
 
 void setup() {
-  // initialize serial communication at 9600 bits per second:
-  Serial.begin(9600); // TODO: Remove after debugging
+  // TODO: Remove all serial comms after debugging.
+  // initialize serial communication at 9600 bits per second:  
+  Serial.begin(9600);
 
   // Set up display
   display.setBrightness(1);
@@ -90,13 +91,12 @@ void rotaryChangeCallback() {
   rotaryEncoder.rotaryUpdate();
 
   if (programState == STATE_ENTERING_RESPONSE) {
-    unsigned int currentPosition = (unsigned int)rotaryEncoder.getPosition();
+    uint8_t currentPosition = (uint8_t)rotaryEncoder.getPosition();
     if (lastDigitValue != currentPosition) {
       lastDigitValue = currentPosition;
 
       int direction = rotaryEncoder.getDirection();
 
-      // TODO: Remove after debugging
       Serial.print("Rotary updated, position: ");
       Serial.print(currentPosition);
       Serial.print(", direction: ");
@@ -112,7 +112,6 @@ void rotaryChangeCallback() {
   }
 }
 
-// TODO: Remove after debugging
 void printRotationalDirection(int direction) {
   switch(direction) {
     case rotaryEncoder.CW:
@@ -140,12 +139,19 @@ void rotaryPressCallback() {
       if (currentSwitchState == rotaryEncoder.SW_ON) {
         Serial.println("Rotary pressed");
 
-        digitsEntered++;
-        if (digitsEntered < 4) {
+        if (digitsEntered < 3) {
           answer *= 10;
         }
 
+        if (digitsEntered < 4) {
+          digitsEntered++;
+        }
+
         rotaryEncoder.setPosition(0);
+        // Serial.print("Digits entered: ");
+        // Serial.println(digitsEntered);
+        // Serial.print("Answer: ");
+        // Serial.println(answer);
         showAnswer();
       } else if (currentSwitchState == rotaryEncoder.SW_OFF) {
         Serial.println("Rotary unpressed");
@@ -163,7 +169,6 @@ void loop() {
 
   updateProgramState(voltage);
 
-  // TODO: Remove after debugging
   // Serial.print("Measured voltage: ");
   // Serial.println(voltage);
   // Serial.print("Rotary position: ");
@@ -178,7 +183,6 @@ float readVoltage() {
   // read the input on analog pin 0:
   int sensorValue = analogRead(A0);
   
-  // TODO: Remove after debugging
   // Serial.print("Raw A0 value: ");
   // Serial.println(sensorValue);
   // Serial.flush();
@@ -319,7 +323,6 @@ void showAnswer() {
   }
 
   display.setSegments(segments);
-
 }
 
 void activateSolenoid() {
