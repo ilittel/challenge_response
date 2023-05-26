@@ -36,11 +36,11 @@ enum PowerState {
 TM1637Display display = TM1637Display(CLK, DIO);
 RotaryEncoder rotaryEncoder(ROTARY_PIN_A, ROTARY_PIN_B, ROTARY_PIN_BUTTON);
 
-PowerState powerState;
 unsigned int challenge;
 unsigned int correctAnswer;
 
 volatile ProgramState programState;
+volatile PowerState powerState;
 volatile uint8_t digitsEntered;
 volatile unsigned int answer;
 volatile uint8_t lastDigitValue;
@@ -167,7 +167,7 @@ void loop() {
 
   updatePowerState(voltage);
 
-  updateProgramState(voltage);
+  updateProgramState();
 
   // Serial.print("Measured voltage: ");
   // Serial.println(voltage);
@@ -242,10 +242,10 @@ void updatePowerIndicator() {
   }
 }
 
-void updateProgramState(float voltage) {
+void updateProgramState() {
   switch (programState) {
     case STATE_CHARGING:
-      if (voltage > CHARGE_THRESHOLD_GREEN) {
+      if (powerState == GREEN) {
         setProgramState(STATE_DISPLAYING_CHALLENGE);
       }
     break;
@@ -288,6 +288,7 @@ void setProgramState(ProgramState newState) {
     case STATE_ENTERING_RESPONSE:
       digitsEntered = 0;
       answer = 0;
+      lastDigitValue = 0;
       showAnswer();
     break;
     case STATE_PROCESSING_RESPONSE:
