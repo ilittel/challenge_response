@@ -38,9 +38,9 @@ RotaryEncoder rotaryEncoder(ROTARY_PIN_A, ROTARY_PIN_B, ROTARY_PIN_BUTTON);
 
 unsigned int challenge;
 unsigned int correctAnswer;
+PowerState powerState;
 
 volatile ProgramState programState;
-volatile PowerState powerState;
 volatile uint8_t digitsEntered;
 volatile unsigned int answer;
 volatile uint8_t lastDigitValue;
@@ -76,7 +76,7 @@ void setup() {
 
   attachInterrupt(digitalPinToInterrupt(ROTARY_PIN_A), rotaryChangeCallback, CHANGE);
   attachInterrupt(digitalPinToInterrupt(ROTARY_PIN_BUTTON), rotaryPressCallback, CHANGE);
-
+  
   setProgramState(STATE_CHARGING);
   // Initialize power and program state
   powerState = RED;
@@ -97,12 +97,12 @@ void rotaryChangeCallback() {
 
       int direction = rotaryEncoder.getDirection();
 
-      Serial.print("Rotary updated, position: ");
-      Serial.print(currentPosition);
-      Serial.print(", direction: ");
-      printRotationalDirection(direction);
-      Serial.println();
-      Serial.flush();
+      // Serial.print("Rotary updated, position: ");
+      // Serial.print(currentPosition);
+      // Serial.print(", direction: ");
+      // printRotationalDirection(direction);
+      // Serial.println();
+      // Serial.flush();
 
       // Replace last digit of current answer with rotary's position.
       answer = ((unsigned int)(answer / 10)*10) + lastDigitValue;
@@ -137,7 +137,7 @@ void rotaryPressCallback() {
       lastSwitchState = currentSwitchState;
 
       if (currentSwitchState == rotaryEncoder.SW_ON) {
-        Serial.println("Rotary pressed");
+        // Serial.println("Rotary pressed");
 
         if (digitsEntered < 3) {
           answer *= 10;
@@ -154,44 +154,32 @@ void rotaryPressCallback() {
         // Serial.println(answer);
         showAnswer();
       } else if (currentSwitchState == rotaryEncoder.SW_OFF) {
-        Serial.println("Rotary unpressed");
+        // Serial.println("Rotary unpressed");
       }
 
-      Serial.flush();
     }
   }
+  //Serial.flush();
 }
 
 void loop() {
-  float voltage = readVoltage();
-
-  updatePowerState(voltage);
+  updatePowerState();
 
   updateProgramState();
 
+  //delay(1000);
+  LowPower.powerDown(SLEEP_1S, ADC_ON, BOD_OFF);
+  //LowPower.idle(SLEEP_1S, ADC_OFF, TIMER2_OFF, TIMER1_OFF, TIMER0_ON, SPI_OFF, USART0_OFF, TWI_OFF);
+
+}
+
+void updatePowerState() {
+  float voltage = readVoltage();
+
   // Serial.print("Measured voltage: ");
   // Serial.println(voltage);
-  // Serial.print("Rotary position: ");
-  // Serial.println(rotaryEncoder.getPosition());
   // Serial.flush();
   
-  delay(1000);
-  //LowPower.powerDown(SLEEP_1S, ADC_ON, BOD_OFF);
-}
-
-float readVoltage() {
-  // read the input on analog pin 0:
-  int sensorValue = analogRead(A0);
-  
-  // Serial.print("Raw A0 value: ");
-  // Serial.println(sensorValue);
-  // Serial.flush();
-
-  // Convert the analog reading (which goes from 0 - 1023) to the reference voltage (0 - 1.1V) and compensate for the voltage divider.
-  return sensorValue * (1.1 / 1023.0) * VOLTAGE_DIVIDER_FACTOR;
-}
-
-void updatePowerState(float voltage) {
   switch (powerState) {
     case RED:
       if (voltage > CHARGE_THRESHOLD_YELLOW) {
@@ -217,6 +205,18 @@ void updatePowerState(float voltage) {
   updatePowerIndicator();
 }
 
+float readVoltage() {
+  // read the input on analog pin 0:
+  int sensorValue = analogRead(A0);
+  
+  // Serial.print("Raw A0 value: ");
+  // Serial.println(sensorValue);
+  // Serial.flush();
+
+  // Convert the analog reading (which goes from 0 - 1023) to the reference voltage (0 - 1.1V) and compensate for the voltage divider.
+  return sensorValue * (1.1 / 1023.0) * VOLTAGE_DIVIDER_FACTOR;
+}
+
 void updatePowerIndicator() {
   switch (powerState) {
     case RED:
@@ -240,8 +240,17 @@ void updatePowerIndicator() {
       Serial.flush();
     break;
   }
+
+  delay(50);
+
+  analogWrite(LED_R, 0);
+  analogWrite(LED_G, 0);
+  analogWrite(LED_B, 0);
 }
 
+//
+// Updates the global program state; may be called from both interrupt handlers and the main looop.
+// 
 void updateProgramState() {
   switch (programState) {
     case STATE_CHARGING:
