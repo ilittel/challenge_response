@@ -1,6 +1,7 @@
 #include <TM1637Display.h>
 #include <FR_RotaryEncoder.h>
 #include <LowPower.h>
+#include <avr/sleep.h>
 
 const byte ROTARY_PIN_A = 3;
 const byte ROTARY_PIN_B = 4;
@@ -21,10 +22,11 @@ const float DISCHARGE_THRESHOLD_YELLOW = 4.0;
 const float DISCHARGE_THRESHOLD_RED = 3.5;
 
 enum ProgramState {
- STATE_CHARGING,
- STATE_DISPLAYING_CHALLENGE,
- STATE_ENTERING_RESPONSE,
- STATE_PROCESSING_RESPONSE
+  STATE_UNINITIALIZED,
+  STATE_CHARGING,
+  STATE_DISPLAYING_CHALLENGE,
+  STATE_ENTERING_RESPONSE,
+  STATE_PROCESSING_RESPONSE
 };
 
 enum PowerState {
@@ -36,15 +38,15 @@ enum PowerState {
 TM1637Display display = TM1637Display(CLK, DIO);
 RotaryEncoder rotaryEncoder(ROTARY_PIN_A, ROTARY_PIN_B, ROTARY_PIN_BUTTON);
 
-unsigned int challenge;
-unsigned int correctAnswer;
-PowerState powerState;
+unsigned int challenge = 0;
+unsigned int correctAnswer = 0;
+PowerState powerState = RED;
 
-volatile ProgramState programState;
-volatile uint8_t digitsEntered;
-volatile unsigned int answer;
-volatile uint8_t lastDigitValue;
-volatile RotaryEncoder::SwitchState lastSwitchState;
+volatile ProgramState programState = STATE_UNINITIALIZED;
+volatile uint8_t digitsEntered = 0;
+volatile unsigned int answer = 0;
+volatile uint8_t lastDigitValue = 0;
+volatile RotaryEncoder::SwitchState lastSwitchState = rotaryEncoder.SW_OFF;
 
 uint8_t INITIAL_SEGMENTS[4] = { SEG_G, SEG_G, SEG_G, SEG_G };
 
@@ -78,17 +80,13 @@ void setup() {
   attachInterrupt(digitalPinToInterrupt(ROTARY_PIN_BUTTON), rotaryPressCallback, CHANGE);
   
   setProgramState(STATE_CHARGING);
-  // Initialize power and program state
-  powerState = RED;
-
-  digitsEntered = 0;
-  answer = 0;
-  lastDigitValue = 0;
-  lastSwitchState = rotaryEncoder.SW_OFF;
 }
 
 void rotaryChangeCallback() {
   rotaryEncoder.rotaryUpdate();
+
+  // Serial.println("Rotary change callback");
+  // Serial.flush();
 
   if (programState == STATE_ENTERING_RESPONSE) {
     uint8_t currentPosition = (uint8_t)rotaryEncoder.getPosition();
@@ -133,6 +131,10 @@ void rotaryPressCallback() {
 
   if (programState == STATE_ENTERING_RESPONSE) {
     RotaryEncoder::SwitchState currentSwitchState = (RotaryEncoder::SwitchState)rotaryEncoder.getSwitchState();
+    // Serial.print("Rotary press callback, current switch state = ");
+    // Serial.print(currentSwitchState);
+    // Serial.println();
+    // Serial.flush();
     if (lastSwitchState != currentSwitchState) {
       lastSwitchState = currentSwitchState;
 
@@ -163,14 +165,29 @@ void rotaryPressCallback() {
 }
 
 void loop() {
-  updatePowerState();
+  bool watchDogTimerEnabled = (WDTCSR & (1<<WDIE));
+  if (watchDogTimerEnabled) {
+    noInterrupts();
+    
+    Serial.println("Resuming sleep");
+    Serial.flush();
+    // Resume sleep
+    sleep_enable();
+    interrupts();
+    sleep_cpu();
+    sleep_disable();
+  } else { // Loop continued because of sleep timeout
+    updatePowerState();
 
-  updateProgramState();
+    updateProgramState();
 
-  //delay(1000);
-  LowPower.powerDown(SLEEP_1S, ADC_ON, BOD_OFF);
-  //LowPower.idle(SLEEP_1S, ADC_OFF, TIMER2_OFF, TIMER1_OFF, TIMER0_ON, SPI_OFF, USART0_OFF, TWI_OFF);
-
+    Serial.println("Re-entering sleep");
+    Serial.flush();
+    // Re-enter sleep
+    //delay(1000);
+    LowPower.powerDown(SLEEP_1S, ADC_OFF, BOD_OFF);
+    //LowPower.idle(SLEEP_1S, ADC_OFF, TIMER2_OFF, TIMER1_OFF, TIMER0_OFF, SPI_OFF, USART0_OFF, TWI_OFF);
+  }
 }
 
 void updatePowerState() {
@@ -249,7 +266,9 @@ void updatePowerIndicator() {
 }
 
 //
-// Updates the global program state; may be called from both interrupt handlers and the main looop.
+// Updates the global program state.
+// 
+// Currently this function is not atomic, so it may only be called from the main loop!
 // 
 void updateProgramState() {
   switch (programState) {
