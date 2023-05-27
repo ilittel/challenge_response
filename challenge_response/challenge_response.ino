@@ -336,19 +336,22 @@ void showAnswer() {
   uint8_t segments[4];
 
   // Show between 1 and 4 digits, as we also need to show the digit that is being entered.
-  const uint8_t digitsToShow = digitsEntered < 4 ? digitsEntered + 1 : 4;
-
-  for (int index = 0; index <= 4 - digitsToShow; index++) {
-    segments[index] = SEG_D;
-  }
+  const uint8_t digitsToShow = min(digitsEntered + 1, 4);
 
   unsigned int partialNumber = answer;
-
-  for (int index = 3; index >= 4 - digitsToShow; index--) {
+  int index = 3;
+  while (index >= 4 - digitsToShow) {
     uint8_t digit = (uint8_t)(partialNumber % 10);
     segments[index] = display.encodeDigit(digit);
 
     partialNumber = (unsigned int)(partialNumber / 10);
+    index--;
+  }
+
+  // Set underscores to segments before
+  while (index >= 0) {
+    segments[index] = SEG_D;
+    index--;
   }
 
   display.setSegments(segments);
