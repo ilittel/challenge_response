@@ -75,6 +75,7 @@ void setup() {
   rotaryEncoder.enableInternalRotaryPullups();
   rotaryEncoder.enableInternalSwitchPullup();
   rotaryEncoder.setRotaryLimits(0, 9, false);
+  rotaryEncoder.setSwitchDebounceDelay(0); // Debounce doesn't seem to be required and misses clicks if >5ms
 
   attachInterrupt(digitalPinToInterrupt(ROTARY_PIN_A), rotaryChangeCallback, CHANGE);
   attachInterrupt(digitalPinToInterrupt(ROTARY_PIN_BUTTON), rotaryPressCallback, CHANGE);
@@ -85,22 +86,10 @@ void setup() {
 void rotaryChangeCallback() {
   rotaryEncoder.rotaryUpdate();
 
-  // Serial.println("Rotary change callback");
-  // Serial.flush();
-
   if (programState == STATE_ENTERING_RESPONSE) {
     uint8_t currentPosition = (uint8_t)rotaryEncoder.getPosition();
     if (lastDigitValue != currentPosition) {
       lastDigitValue = currentPosition;
-
-      int direction = rotaryEncoder.getDirection();
-
-      // Serial.print("Rotary updated, position: ");
-      // Serial.print(currentPosition);
-      // Serial.print(", direction: ");
-      // printRotationalDirection(direction);
-      // Serial.println();
-      // Serial.flush();
 
       // Replace last digit of current answer with rotary's position.
       answer = ((unsigned int)(answer / 10)*10) + lastDigitValue;
@@ -110,37 +99,14 @@ void rotaryChangeCallback() {
   }
 }
 
-void printRotationalDirection(int direction) {
-  switch(direction) {
-    case rotaryEncoder.CW:
-      Serial.print("CW");
-      break;
-    case rotaryEncoder.CCW:
-      Serial.print("CCW");
-      break;
-    case rotaryEncoder.NOT_MOVED:
-      Serial.print("NOT_MOVED");
-      break;
-    default:
-      Serial.print("Unrecognized direction of rotation");  
-  } 
-}
-
 void rotaryPressCallback() {
   rotaryEncoder.switchUpdate();
-
   if (programState == STATE_ENTERING_RESPONSE) {
     RotaryEncoder::SwitchState currentSwitchState = (RotaryEncoder::SwitchState)rotaryEncoder.getSwitchState();
-    // Serial.print("Rotary press callback, current switch state = ");
-    // Serial.print(currentSwitchState);
-    // Serial.println();
-    // Serial.flush();
     if (lastSwitchState != currentSwitchState) {
       lastSwitchState = currentSwitchState;
 
       if (currentSwitchState == rotaryEncoder.SW_ON) {
-        // Serial.println("Rotary pressed");
-
         if (digitsEntered < 3) {
           answer *= 10;
         }
@@ -150,28 +116,16 @@ void rotaryPressCallback() {
         }
 
         rotaryEncoder.setPosition(0);
-        // Serial.print("Digits entered: ");
-        // Serial.println(digitsEntered);
-        // Serial.print("Answer: ");
-        // Serial.println(answer);
         showAnswer();
-      } else if (currentSwitchState == rotaryEncoder.SW_OFF) {
-        // Serial.println("Rotary unpressed");
       }
-
     }
   }
-  //Serial.flush();
 }
 
 void loop() {
   bool watchDogTimerEnabled = (WDTCSR & (1<<WDIE));
   if (watchDogTimerEnabled) {
     noInterrupts();
-    
-    Serial.println("Resuming sleep");
-    Serial.flush();
-    // Resume sleep
     sleep_enable();
     interrupts();
     sleep_cpu();
@@ -181,22 +135,13 @@ void loop() {
 
     updateProgramState();
 
-    Serial.println("Re-entering sleep");
-    Serial.flush();
-    // Re-enter sleep
-    //delay(1000);
     LowPower.powerDown(SLEEP_1S, ADC_OFF, BOD_OFF);
-    //LowPower.idle(SLEEP_1S, ADC_OFF, TIMER2_OFF, TIMER1_OFF, TIMER0_OFF, SPI_OFF, USART0_OFF, TWI_OFF);
   }
 }
 
 void updatePowerState() {
   float voltage = readVoltage();
 
-  // Serial.print("Measured voltage: ");
-  // Serial.println(voltage);
-  // Serial.flush();
-  
   switch (powerState) {
     case RED:
       if (voltage > CHARGE_THRESHOLD_YELLOW) {
@@ -226,10 +171,6 @@ float readVoltage() {
   // read the input on analog pin 0:
   int sensorValue = analogRead(A0);
   
-  // Serial.print("Raw A0 value: ");
-  // Serial.println(sensorValue);
-  // Serial.flush();
-
   // Convert the analog reading (which goes from 0 - 1023) to the reference voltage (0 - 1.1V) and compensate for the voltage divider.
   return sensorValue * (1.1 / 1023.0) * VOLTAGE_DIVIDER_FACTOR;
 }
@@ -287,6 +228,7 @@ void updateProgramState() {
         setProgramState(STATE_PROCESSING_RESPONSE);
       }
     break;
+    // TODO: Kan deze state niet weg? De transitie kan ook gelijk hierboven plaatsvinden.
     case STATE_PROCESSING_RESPONSE:
       if (answer == correctAnswer) {
         activateSolenoid();
@@ -325,6 +267,7 @@ void setProgramState(ProgramState newState) {
     default:
       Serial.print("Error: invalid new state value: ");
       Serial.println(newState);
+      Serial.flush();
       return;
     break;
   }
