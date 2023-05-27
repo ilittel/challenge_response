@@ -123,9 +123,9 @@ void rotaryPressCallback() {
 }
 
 void loop() {
+  noInterrupts();
   bool watchDogTimerEnabled = (WDTCSR & (1<<WDIE));
   if (watchDogTimerEnabled) {
-    noInterrupts();
     sleep_enable();
     interrupts();
     sleep_cpu();
