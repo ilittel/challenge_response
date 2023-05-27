@@ -125,18 +125,19 @@ void rotaryPressCallback() {
 void loop() {
   noInterrupts();
   bool watchDogTimerEnabled = (WDTCSR & (1<<WDIE));
-  if (watchDogTimerEnabled) {
+  if (watchDogTimerEnabled) { // Loop re-entered because of interrupt
     sleep_enable();
     interrupts();
     sleep_cpu();
     sleep_disable();
-  } else { // Loop continued because of sleep timeout
+  } else { // Loop re-entered because of sleep timeout
     updatePowerState();
 
     updateProgramState();
 
     LowPower.powerDown(SLEEP_1S, ADC_OFF, BOD_OFF);
   }
+  interrupts();
 }
 
 void updatePowerState() {
