@@ -131,13 +131,13 @@ void loop() {
     sleep_cpu();
     sleep_disable();
   } else { // Loop re-entered because of sleep timeout
+    interrupts();
     updatePowerState();
 
     updateProgramState();
 
     LowPower.powerDown(SLEEP_1S, ADC_OFF, BOD_OFF);
   }
-  interrupts();
 }
 
 void updatePowerState() {
