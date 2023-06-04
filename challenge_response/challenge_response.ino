@@ -14,13 +14,14 @@ const uint8_t LED_G = 6;
 const uint8_t LED_R = 9;
 const uint8_t SOLENOID_PIN = 10;
 
+const float REFERENCE_VOLTAGE = 1.107;
 const float VOLTAGE_DIVIDER_FACTOR = ((100.0 + 10.0) / 10.0);
 
-const float CHARGE_THRESHOLD_YELLOW = 4.5;
-const float CHARGE_THRESHOLD_GREEN = 5.1;
+const float CHARGE_THRESHOLD_YELLOW = 8.0;
+const float CHARGE_THRESHOLD_GREEN = 10.0;
 
-const float DISCHARGE_THRESHOLD_YELLOW = 4.0;
-const float DISCHARGE_THRESHOLD_RED = 3.5;
+const float DISCHARGE_THRESHOLD_YELLOW = 6.0;
+const float DISCHARGE_THRESHOLD_RED = 4.5;
 
 enum ProgramState {
   STATE_UNINITIALIZED,
@@ -176,7 +177,7 @@ float readVoltage() {
   int sensorValue = analogRead(A0);
   
   // Convert the analog reading (which goes from 0 - 1023) to the reference voltage (0 - 1.1V) and compensate for the voltage divider.
-  return sensorValue * (1.1 / 1023.0) * VOLTAGE_DIVIDER_FACTOR;
+  return sensorValue * (REFERENCE_VOLTAGE / 1023.0) * VOLTAGE_DIVIDER_FACTOR;
 }
 
 void updatePowerIndicator() {
@@ -236,6 +237,7 @@ void updateProgramState() {
     case STATE_PROCESSING_RESPONSE:
       if (answer == correctAnswer) {
         activateSolenoid();
+        powerState = RED; // Make sure the solenoid cap is recharged.
         setProgramState(STATE_CHARGING);
       } else {
         setProgramState(STATE_ENTERING_RESPONSE);
@@ -254,7 +256,7 @@ void setProgramState(ProgramState newState) {
     case STATE_CHARGING:
       challenge = 4321; // TODO
       correctAnswer = 1234; // TODO
-      display.clear();  
+      display.clear();
     break;
     case STATE_DISPLAYING_CHALLENGE:
       display.showNumberDec(challenge);
@@ -309,6 +311,6 @@ void activateSolenoid() {
   Serial.flush();
 
   digitalWrite(SOLENOID_PIN, HIGH);  
-  delay(500);
+  delay(1000);
   digitalWrite(SOLENOID_PIN, LOW);
 }
