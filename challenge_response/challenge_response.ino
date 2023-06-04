@@ -12,6 +12,7 @@ const uint8_t DIO = 8;
 const uint8_t LED_B = 5;
 const uint8_t LED_G = 6;
 const uint8_t LED_R = 9;
+const uint8_t SOLENOID_PIN = 10;
 
 const float VOLTAGE_DIVIDER_FACTOR = ((100.0 + 10.0) / 10.0);
 
@@ -66,6 +67,8 @@ void setup() {
   pinMode(LED_R, OUTPUT);
   pinMode(LED_G, OUTPUT);
   pinMode(LED_B, OUTPUT);
+  pinMode(SOLENOID_PIN, OUTPUT);
+  digitalWrite(SOLENOID_PIN, LOW);
 
   pinMode(ROTARY_PIN_A, INPUT_PULLUP);
   pinMode(ROTARY_PIN_B, INPUT_PULLUP);
@@ -304,5 +307,8 @@ void showAnswer() {
 void activateSolenoid() {
   Serial.println("Activating solenoid");
   Serial.flush();
-  // TODO
+
+  digitalWrite(SOLENOID_PIN, HIGH);  
+  delay(500);
+  digitalWrite(SOLENOID_PIN, LOW);
 }
