@@ -22,7 +22,6 @@ const float CHARGE_THRESHOLD_GREEN = 9.9;
 
 const float DISCHARGE_THRESHOLD_YELLOW = 6.0;
 const float DISCHARGE_THRESHOLD_RED = 4.5;
-const float DISCHARGE_THRESHOLD_RESET = 3.5;
 
 enum ProgramState {
   STATE_UNINITIALIZED,
@@ -35,8 +34,7 @@ enum ProgramState {
 enum PowerState {
   GREEN,
   YELLOW,
-  RED,
-  RESET
+  RED
 };
 
 TM1637Display display = TM1637Display(CLK, DIO);
@@ -155,12 +153,8 @@ void updatePowerState() {
   Serial.flush();
   switch (powerState) {
     case RED:
-    case RESET: // HACK: reset if we are really low on power.
-      // TODO: Build something proper for this (extra program state?)
       if (voltage > CHARGE_THRESHOLD_YELLOW) {
         powerState = YELLOW;
-      } else if (voltage < DISCHARGE_THRESHOLD_RESET) {
-        powerState = RESET;
       }
     break;
     case YELLOW:
@@ -193,7 +187,6 @@ float readVoltage() {
 void updatePowerIndicator() {
   switch (powerState) {
     case RED:
-    case RESET:
       analogWrite(LED_R, 1);
       analogWrite(LED_G, 0);
       analogWrite(LED_B, 0);
@@ -228,11 +221,6 @@ void updatePowerIndicator() {
 // Currently this function is not atomic, so it may only be called from the main loop!
 // 
 void updateProgramState() {
-  if (powerState == RESET) {
-    powerState = RED; // Make sure the solenoid cap is recharged.
-    setProgramState(STATE_CHARGING);
-  }
-
   switch (programState) {
     case STATE_CHARGING:
       if (powerState == GREEN) {
