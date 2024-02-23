@@ -9,9 +9,9 @@ const byte ROTARY_PIN_BUTTON = 2;
 
 const uint8_t CLK = 7;
 const uint8_t DIO = 8;
-const uint8_t LED_B = 5;
-const uint8_t LED_G = 6;
 const uint8_t LED_R = 9;
+const uint8_t LED_G = 6;
+const uint8_t LED_B = 5;
 const uint8_t SOLENOID_PIN = 10;
 
 const float REFERENCE_VOLTAGE = 1.107;
@@ -20,8 +20,8 @@ const float VOLTAGE_DIVIDER_FACTOR = ((100.0 + 10.0) / 10.0);
 const float CHARGE_THRESHOLD_YELLOW = 8.0;
 const float CHARGE_THRESHOLD_GREEN = 9.9;
 
-const float DISCHARGE_THRESHOLD_YELLOW = 6.0;
-const float DISCHARGE_THRESHOLD_RED = 4.5;
+const float DISCHARGE_THRESHOLD_YELLOW = 4.5;
+const float DISCHARGE_THRESHOLD_RED = 3.5;
 
 enum ProgramState {
   STATE_UNINITIALIZED,
@@ -187,12 +187,12 @@ float readVoltage() {
 void updatePowerIndicator() {
   switch (powerState) {
     case RED:
-      analogWrite(LED_R, 1);
+      analogWrite(LED_R, 10);
       analogWrite(LED_G, 0);
       analogWrite(LED_B, 0);
     break;
     case YELLOW:
-      analogWrite(LED_R, 1);
+      analogWrite(LED_R, 10);
       analogWrite(LED_G, 1);
       analogWrite(LED_B, 0);
     break;
