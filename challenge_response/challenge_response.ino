@@ -1,5 +1,5 @@
 #include <TM1637Display.h>
-#include <FR_RotaryEncoder.h>
+#include "RotaryInput.h"
 #include <LowPower.h>
 #include <avr/sleep.h>
 
@@ -38,17 +38,13 @@ enum PowerState {
 };
 
 TM1637Display display = TM1637Display(CLK, DIO);
-RotaryEncoder rotaryEncoder(ROTARY_PIN_A, ROTARY_PIN_B, ROTARY_PIN_BUTTON);
+RotaryInput& rotaryInput = RotaryInput::init(ROTARY_PIN_A, ROTARY_PIN_B, ROTARY_PIN_BUTTON, &showAnswer);
 
 unsigned int challenge = 0;
 unsigned int correctAnswer = 0;
 PowerState powerState = RED;
 
 volatile ProgramState programState = STATE_UNINITIALIZED;
-volatile uint8_t digitsEntered = 0;
-volatile unsigned int answer = 0;
-volatile uint8_t lastDigitValue = 0;
-volatile RotaryEncoder::SwitchState lastSwitchState = rotaryEncoder.SW_OFF;
 
 uint8_t INITIAL_SEGMENTS[4] = { SEG_G, SEG_G, SEG_G, SEG_G };
 
@@ -71,59 +67,7 @@ void setup() {
   pinMode(SOLENOID_PIN, OUTPUT);
   digitalWrite(SOLENOID_PIN, LOW);
 
-  pinMode(ROTARY_PIN_A, INPUT_PULLUP);
-  pinMode(ROTARY_PIN_B, INPUT_PULLUP);
-  pinMode(ROTARY_PIN_BUTTON, INPUT_PULLUP);
-
-  // Set up rotary encoder
-  rotaryEncoder.enableInternalRotaryPullups();
-  rotaryEncoder.enableInternalSwitchPullup();
-  rotaryEncoder.setRotaryLimits(0, 9, false);
-  rotaryEncoder.setSwitchDebounceDelay(0); // Debounce doesn't seem to be required and misses clicks if >5ms
-
-  attachInterrupt(digitalPinToInterrupt(ROTARY_PIN_A), rotaryChangeCallback, CHANGE);
-  attachInterrupt(digitalPinToInterrupt(ROTARY_PIN_BUTTON), rotaryPressCallback, CHANGE);
-  
   setProgramState(STATE_CHARGING);
-}
-
-void rotaryChangeCallback() {
-  rotaryEncoder.rotaryUpdate();
-
-  if (programState == STATE_ENTERING_RESPONSE) {
-    uint8_t currentPosition = (uint8_t)rotaryEncoder.getPosition();
-    if (lastDigitValue != currentPosition) {
-      lastDigitValue = currentPosition;
-
-      // Replace last digit of current answer with rotary's position.
-      answer = ((unsigned int)(answer / 10)*10) + lastDigitValue;
-
-      showAnswer();
-    }
-  }
-}
-
-void rotaryPressCallback() {
-  rotaryEncoder.switchUpdate();
-  if (programState == STATE_ENTERING_RESPONSE) {
-    RotaryEncoder::SwitchState currentSwitchState = (RotaryEncoder::SwitchState)rotaryEncoder.getSwitchState();
-    if (lastSwitchState != currentSwitchState) {
-      lastSwitchState = currentSwitchState;
-
-      if (currentSwitchState == rotaryEncoder.SW_ON) {
-        if (digitsEntered < 3) {
-          answer *= 10;
-        }
-
-        if (digitsEntered < 4) {
-          digitsEntered++;
-        }
-
-        rotaryEncoder.setPosition(0);
-        showAnswer();
-      }
-    }
-  }
 }
 
 void loop() {
@@ -228,23 +172,23 @@ void updateProgramState() {
       }
     break;
     case STATE_DISPLAYING_CHALLENGE:
-      if (rotaryEncoder.getPosition() > 0) {
+      if (rotaryInput.getAnswer() != 0) {
         setProgramState(STATE_ENTERING_RESPONSE);
       }
     break;
     case STATE_ENTERING_RESPONSE:
-      if (digitsEntered > 3) {
+      if (rotaryInput.getDigitsEntered() > 3) {
         setProgramState(STATE_PROCESSING_RESPONSE);
       }
     break;
     // TODO: Kan deze state niet weg? De transitie kan ook gelijk hierboven plaatsvinden.
     case STATE_PROCESSING_RESPONSE:
-      if (answer == correctAnswer) {
+      if (rotaryInput.getAnswer() == correctAnswer) {
         activateSolenoid();
         powerState = RED; // Make sure the solenoid cap is recharged.
         setProgramState(STATE_CHARGING);
       } else {
-        setProgramState(STATE_ENTERING_RESPONSE);
+        setProgramState(STATE_DISPLAYING_CHALLENGE);
       }
     break;
     default:
@@ -263,14 +207,12 @@ void setProgramState(ProgramState newState) {
       display.clear();
     break;
     case STATE_DISPLAYING_CHALLENGE:
-      // Reset rotary position to prevent immediate transition to 'entering response' state.
-      rotaryEncoder.setPosition(0);
+      // Reset rotary input to prevent immediate transition to 'entering response' state.
+      rotaryInput.reset();
       display.showNumberDec(challenge);
     break;
     case STATE_ENTERING_RESPONSE:
-      digitsEntered = 0;
-      answer = 0;
-      lastDigitValue = 0;
+      rotaryInput.reset();
       showAnswer();
     break;
     case STATE_PROCESSING_RESPONSE:
@@ -288,28 +230,30 @@ void setProgramState(ProgramState newState) {
 }
 
 void showAnswer() {
-  uint8_t segments[4];
+  if (programState == STATE_ENTERING_RESPONSE) {
+    uint8_t segments[4];
 
-  // Show between 1 and 4 digits, as we also need to show the digit that is being entered.
-  const uint8_t digitsToShow = min(digitsEntered + 1, 4);
+    // Show between 1 and 4 digits, as we also need to show the digit that is being entered.
+    const uint8_t digitsToShow = min(rotaryInput.getDigitsEntered() + 1, 4);
 
-  unsigned int partialNumber = answer;
-  int index = 3;
-  while (index >= 4 - digitsToShow) {
-    uint8_t digit = (uint8_t)(partialNumber % 10);
-    segments[index] = display.encodeDigit(digit);
+    unsigned int partialNumber = rotaryInput.getAnswer();
+    int index = 3;
+    while (index >= 4 - digitsToShow) {
+      uint8_t digit = (uint8_t)(partialNumber % 10);
+      segments[index] = display.encodeDigit(digit);
 
-    partialNumber = (unsigned int)(partialNumber / 10);
-    index--;
+      partialNumber = (unsigned int)(partialNumber / 10);
+      index--;
+    }
+
+    // Set underscores to segments before
+    while (index >= 0) {
+      segments[index] = SEG_D;
+      index--;
+    }
+
+    display.setSegments(segments);
   }
-
-  // Set underscores to segments before
-  while (index >= 0) {
-    segments[index] = SEG_D;
-    index--;
-  }
-
-  display.setSegments(segments);
 }
 
 void activateSolenoid() {
