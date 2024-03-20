@@ -6,34 +6,37 @@
 
 class RotaryInput {
   public:
-    static RotaryInput& init(byte pinA, byte pinB, byte pinButton, void (*inputChangedCallback)());
+    static RotaryInput& init(byte pinA, byte pinB, byte pinButton);
 
     void reset();
     uint8_t getDigitsEntered();
-    unsigned int getAnswer();
+    int getAnswer();
+
+    // TODO: Remove these temporary variables. 
+    volatile unsigned int nrChangedInterrupts = 0;
+    volatile unsigned int nrPressedInterrupts = 0;
 
   private:
+    // TODO: Try to change to reference type
     static RotaryInput* INSTANCE;
 
-    static void globalChangeCallback();
-    static void globalPressedCallback();
+    static void CHANGED_CALLBACK();
+    static void PRESSED_CALLBACK();
   
-    void rotaryChangeCallback();
+    void rotaryChangedCallback();
     void rotaryPressedCallback();
 
-    RotaryInput(byte pinA, byte pinB, byte pinButton, void (*inputUpdatedCallback)());
+    RotaryInput(byte pinA, byte pinB, byte pinButton);
     
     byte pinA;
     byte pinButton;
-    void (*inputUpdatedCallback)();
 
     RotaryEncoder rotaryEncoder;
 
     volatile uint8_t digitsEntered = 0;
-    volatile unsigned int answer = 0;
+    volatile unsigned int partialAnswer = 0;
     volatile uint8_t lastDigitValue = 0;
     volatile RotaryEncoder::SwitchState lastSwitchState = RotaryEncoder::SwitchState::SW_OFF;
-
 };
 
 #endif

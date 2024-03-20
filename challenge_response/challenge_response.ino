@@ -23,6 +23,9 @@ const float CHARGE_THRESHOLD_GREEN = 9.9;
 const float DISCHARGE_THRESHOLD_YELLOW = 4.5;
 const float DISCHARGE_THRESHOLD_RED = 3.5;
 
+int lastAnswer = -1;
+uint8_t lastDigitsEntered = 0;
+
 enum ProgramState {
   STATE_UNINITIALIZED,
   STATE_CHARGING,
@@ -38,7 +41,7 @@ enum PowerState {
 };
 
 TM1637Display display = TM1637Display(CLK, DIO);
-RotaryInput& rotaryInput = RotaryInput::init(ROTARY_PIN_A, ROTARY_PIN_B, ROTARY_PIN_BUTTON, &showAnswer);
+RotaryInput& rotaryInput = RotaryInput::init(ROTARY_PIN_A, ROTARY_PIN_B, ROTARY_PIN_BUTTON);
 
 unsigned int challenge = 0;
 unsigned int correctAnswer = 0;
@@ -71,30 +74,57 @@ void setup() {
 }
 
 void loop() {
+  // TODO: Remove
+  Serial.print("nrChangedInterrupts: ");
+  Serial.println(rotaryInput.nrChangedInterrupts);
+  Serial.print("nrPressedInterrupts: ");
+  Serial.println(rotaryInput.nrPressedInterrupts);
+  Serial.print("getAnswer():");
+  Serial.println(rotaryInput.getAnswer());
+  Serial.flush();
+
   noInterrupts();
-  bool watchDogTimerEnabled = (WDTCSR & (1<<WDIE));
-  if (watchDogTimerEnabled) { // Loop re-entered because of interrupt
-    sleep_enable();
+  // Check if input has changed.
+  if (rotaryInput.getAnswer() != lastAnswer ||
+      rotaryInput.getDigitsEntered() != lastDigitsEntered) {
+    // Store answer + digits entered into variables and use those everywhere else so we
+    // don't have the risk of suddenly updated values.
+    lastAnswer = rotaryInput.getAnswer();
+    lastDigitsEntered = rotaryInput.getDigitsEntered();
+
     interrupts();
-    sleep_cpu();
-    sleep_disable();
-  } else { // Loop re-entered because of sleep timeout
-    interrupts();
-    updatePowerState();
 
     updateProgramState();
 
-    LowPower.powerDown(SLEEP_1S, ADC_OFF, BOD_OFF);
+    // (After this point, loop() is re-entered to see if other changes were made; otherwise, go to sleep (again).)
+  } else { // Go to sleep if input hasn't changed.
+    bool watchDogTimerEnabled = (WDTCSR & (1<<WDIE));
+    if (watchDogTimerEnabled) { // Loop was re-entered because of pin interrupt.
+      sleep_enable();
+      interrupts();
+      sleep_cpu();
+      // (At this point, sleep was interrupted again by pin interrupt or sleep timeout.)
+      sleep_disable();
+    } else { // Initial loop or Loop re-entered because of sleep timeout.
+      interrupts();
+
+      updatePowerIndicator();
+      updatePowerState();
+      updateProgramState();
+
+      LowPower.powerDown(SLEEP_1S, ADC_OFF, BOD_OFF);
+      // (At this point, sleep was interrupted by pin interrupt or sleep timeout.)
+    }
   }
 }
 
 void updatePowerState() {
   float voltage = readVoltage();
 
-  Serial.print("Measured voltage: ");
-  Serial.print(voltage);
-  Serial.println();
-  Serial.flush();
+  // Serial.print("Measured voltage: ");
+  // Serial.print(voltage);
+  // Serial.println();
+  // Serial.flush();
   switch (powerState) {
     case RED:
       if (voltage > CHARGE_THRESHOLD_YELLOW) {
@@ -116,8 +146,6 @@ void updatePowerState() {
     default:
     break;
   }
-
-  updatePowerIndicator();
 }
 
 float readVoltage() {
@@ -172,18 +200,19 @@ void updateProgramState() {
       }
     break;
     case STATE_DISPLAYING_CHALLENGE:
-      if (rotaryInput.getAnswer() != 0) {
+      if (lastAnswer > -1) {
         setProgramState(STATE_ENTERING_RESPONSE);
       }
     break;
     case STATE_ENTERING_RESPONSE:
-      if (rotaryInput.getDigitsEntered() > 3) {
+      showAnswer();
+      if (lastDigitsEntered > 3) {
         setProgramState(STATE_PROCESSING_RESPONSE);
       }
     break;
     // TODO: Kan deze state niet weg? De transitie kan ook gelijk hierboven plaatsvinden.
     case STATE_PROCESSING_RESPONSE:
-      if (rotaryInput.getAnswer() == correctAnswer) {
+      if (lastAnswer == correctAnswer) {
         activateSolenoid();
         powerState = RED; // Make sure the solenoid cap is recharged.
         setProgramState(STATE_CHARGING);
@@ -212,8 +241,7 @@ void setProgramState(ProgramState newState) {
       display.showNumberDec(challenge);
     break;
     case STATE_ENTERING_RESPONSE:
-      rotaryInput.reset();
-      showAnswer();
+      // Do nothing
     break;
     case STATE_PROCESSING_RESPONSE:
       // Do nothing
@@ -234,15 +262,15 @@ void showAnswer() {
     uint8_t segments[4];
 
     // Show between 1 and 4 digits, as we also need to show the digit that is being entered.
-    const uint8_t digitsToShow = min(rotaryInput.getDigitsEntered() + 1, 4);
+    const uint8_t digitsToShow = min(lastDigitsEntered + 1, 4);
 
-    unsigned int partialNumber = rotaryInput.getAnswer();
+    int partialNumber = lastAnswer;
     int index = 3;
     while (index >= 4 - digitsToShow) {
       uint8_t digit = (uint8_t)(partialNumber % 10);
       segments[index] = display.encodeDigit(digit);
 
-      partialNumber = (unsigned int)(partialNumber / 10);
+      partialNumber /= 10;
       index--;
     }
 
