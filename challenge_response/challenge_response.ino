@@ -25,6 +25,7 @@ const float DISCHARGE_THRESHOLD_RED = 3.5;
 
 int lastAnswer = -1;
 uint8_t lastDigitsEntered = 0;
+bool timerProcessed = false;
 
 enum ProgramState {
   STATE_UNINITIALIZED,
@@ -74,14 +75,16 @@ void setup() {
 }
 
 void loop() {
-  // TODO: Remove
-  Serial.print("nrChangedInterrupts: ");
-  Serial.println(rotaryInput.nrChangedInterrupts);
-  Serial.print("nrPressedInterrupts: ");
-  Serial.println(rotaryInput.nrPressedInterrupts);
-  Serial.print("getAnswer():");
-  Serial.println(rotaryInput.getAnswer());
-  Serial.flush();
+  noInterrupts();
+  bool watchDogTimerEnabled = watchDogTimerOn();
+  interrupts();
+  if (!watchDogTimerEnabled && !timerProcessed) { // Loop was re-entered because of sleep timeout and it wasn't processed yet.
+    updatePowerIndicator();
+    timerProcessed = true;
+  }
+
+  updatePowerState();
+  updateProgramState();
 
   noInterrupts();
   // Check if input has changed.
@@ -93,29 +96,26 @@ void loop() {
     lastDigitsEntered = rotaryInput.getDigitsEntered();
 
     interrupts();
-
-    updateProgramState();
-
-    // (After this point, loop() is re-entered to see if other changes were made; otherwise, go to sleep (again).)
-  } else { // Go to sleep if input hasn't changed.
-    bool watchDogTimerEnabled = (WDTCSR & (1<<WDIE));
-    if (watchDogTimerEnabled) { // Loop was re-entered because of pin interrupt.
+    // (After this point, loop() is re-entered to process changes and see if other changes were made; 
+    // otherwise, go to sleep (again).)
+  } else { // input hasn't changed -> go to sleep.
+    if (watchDogTimerOn()) { // Last sleep period isn't over yet.
       sleep_enable();
       interrupts();
       sleep_cpu();
       // (At this point, sleep was interrupted again by pin interrupt or sleep timeout.)
       sleep_disable();
-    } else { // Initial loop or Loop re-entered because of sleep timeout.
+    } else { // Watchdog timed out -> enter a new sleep period.
       interrupts();
-
-      updatePowerIndicator();
-      updatePowerState();
-      updateProgramState();
-
+      timerProcessed = false;
       LowPower.powerDown(SLEEP_1S, ADC_OFF, BOD_OFF);
       // (At this point, sleep was interrupted by pin interrupt or sleep timeout.)
     }
   }
+}
+
+bool watchDogTimerOn() {
+  return (WDTCSR & (1<<WDIE));
 }
 
 void updatePowerState() {
