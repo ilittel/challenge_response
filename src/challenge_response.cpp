@@ -1,3 +1,6 @@
+#include <Arduino.h>
+#include "challenge_response.h"
+
 #include <TM1637Display.h>
 #include "RotaryInput.h"
 #include <LowPower.h>
@@ -26,20 +29,6 @@ const float DISCHARGE_THRESHOLD_RED = 3.5;
 int lastAnswer = -1;
 uint8_t lastDigitsEntered = 0;
 bool timerProcessed = false;
-
-enum ProgramState {
-  STATE_UNINITIALIZED,
-  STATE_CHARGING,
-  STATE_DISPLAYING_CHALLENGE,
-  STATE_ENTERING_RESPONSE,
-  STATE_PROCESSING_RESPONSE
-};
-
-enum PowerState {
-  GREEN,
-  YELLOW,
-  RED
-};
 
 TM1637Display display = TM1637Display(CLK, DIO);
 RotaryInput& rotaryInput = RotaryInput::init(ROTARY_PIN_A, ROTARY_PIN_B, ROTARY_PIN_BUTTON);
