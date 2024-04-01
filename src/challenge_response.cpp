@@ -33,8 +33,8 @@ bool timerProcessed = false;
 TM1637Display display = TM1637Display(CLK, DIO);
 RotaryInput& rotaryInput = RotaryInput::init(ROTARY_PIN_A, ROTARY_PIN_B, ROTARY_PIN_BUTTON);
 
-unsigned int challenge = 0;
-unsigned int correctAnswer = 0;
+int challenge = 0;
+int correctAnswer = 0;
 PowerState powerState = RED;
 
 volatile ProgramState programState = STATE_UNINITIALIZED;

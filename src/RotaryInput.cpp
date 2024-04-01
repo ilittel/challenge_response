@@ -14,7 +14,7 @@ RotaryInput::RotaryInput(byte pinA, byte pinB, byte pinButton)
   reset();
 }
 
-static RotaryInput& RotaryInput::init(byte pinA, byte pinB, byte pinButton) {
+RotaryInput& RotaryInput::init(byte pinA, byte pinB, byte pinButton) {
   if (INSTANCE != NULL) {
     detachInterrupt(digitalPinToInterrupt(INSTANCE->pinA));
     detachInterrupt(digitalPinToInterrupt(INSTANCE->pinButton));
@@ -49,11 +49,11 @@ uint8_t RotaryInput::getDigitsEntered() {
   return digitsEntered;
 }
 
-static void RotaryInput::CHANGED_CALLBACK() {
+void RotaryInput::CHANGED_CALLBACK() {
   INSTANCE->rotaryChangedCallback();
 }
 
-static void RotaryInput::PRESSED_CALLBACK() {
+void RotaryInput::PRESSED_CALLBACK() {
   INSTANCE->rotaryPressedCallback();
 }
 
