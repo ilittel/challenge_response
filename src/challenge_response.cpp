@@ -6,12 +6,12 @@
 #include <LowPower.h>
 #include <avr/sleep.h>
 
-const byte ROTARY_PIN_A = 3;
-const byte ROTARY_PIN_B = 4;
-const byte ROTARY_PIN_BUTTON = 2;
+const byte ROTARY_PIN_BUTTON = 2; // SW
+const byte ROTARY_PIN_A = 3;      // CLK
+const byte ROTARY_PIN_B = 4;      // DT
 
-const uint8_t CLK = 7;
-const uint8_t DIO = 8;
+const uint8_t CLK = 8;
+const uint8_t DIO = 7;
 const uint8_t LED_R = 9;
 const uint8_t LED_G = 6;
 const uint8_t LED_B = 5;
@@ -20,11 +20,11 @@ const uint8_t SOLENOID_PIN = 10;
 const float REFERENCE_VOLTAGE = 1.107;
 const float VOLTAGE_DIVIDER_FACTOR = ((100.0 + 10.0) / 10.0);
 
-const float CHARGE_THRESHOLD_YELLOW = 4.5;
-const float CHARGE_THRESHOLD_GREEN = 5.0;
+const float CHARGE_THRESHOLD_YELLOW = 5.5;
+const float CHARGE_THRESHOLD_GREEN = 7.0;
 
-const float DISCHARGE_THRESHOLD_YELLOW = 4.5;
-const float DISCHARGE_THRESHOLD_RED = 3.5;
+const float DISCHARGE_THRESHOLD_YELLOW = 5.0;
+const float DISCHARGE_THRESHOLD_RED = 4.5;
 
 int lastAnswer = -1;
 uint8_t lastDigitsEntered = 0;
