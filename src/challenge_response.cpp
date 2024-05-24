@@ -220,12 +220,10 @@ void updateProgramState() {
 void setProgramState(ProgramState newState) {
   switch(newState) {
     case STATE_CHARGING:
-      randomSeed((unsigned long)(analogRead(A0) * analogRead(A1)));
-      challenge = (int)random(0, 9999);
-      correctAnswer = calculateAnswer();
       display.clear();
     break;
     case STATE_DISPLAYING_CHALLENGE:
+      resetChallenge();
       // Reset rotary input to prevent immediate transition to 'entering response' state.
       rotaryInput.reset();
       display.showNumberDec(challenge);
@@ -245,6 +243,12 @@ void setProgramState(ProgramState newState) {
   }
 
   programState = newState;
+}
+
+void resetChallenge() {
+  randomSeed((unsigned long)(analogRead(A0) * analogRead(A1)));
+  challenge = (int)random(0, 9999);
+  correctAnswer = calculateAnswer();
 }
 
 int calculateAnswer() {

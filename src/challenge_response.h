@@ -31,6 +31,8 @@ void updateProgramState();
 
 void setProgramState(ProgramState newState);
 
+void resetChallenge();
+
 int calculateAnswer();
 
 void showAnswer();
