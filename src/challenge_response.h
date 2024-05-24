@@ -36,3 +36,5 @@ int calculateAnswer();
 void showAnswer();
 
 void activateSolenoid();
+
+void blinkTillTheEnd();

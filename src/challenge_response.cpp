@@ -203,8 +203,8 @@ void updateProgramState() {
     case STATE_PROCESSING_RESPONSE:
       if (lastAnswer == correctAnswer) {
         activateSolenoid();
-        powerState = RED; // Make sure the solenoid cap is recharged.
-        setProgramState(STATE_CHARGING);
+        // After activation, blink the RGB LED until we are out of power.
+        blinkTillTheEnd();
       } else {
         setProgramState(STATE_DISPLAYING_CHALLENGE);
       }
@@ -294,4 +294,14 @@ void activateSolenoid() {
   digitalWrite(SOLENOID_PIN, HIGH);  
   delay(1000);
   digitalWrite(SOLENOID_PIN, LOW);
+}
+
+void blinkTillTheEnd() {
+  while (true) {
+    analogWrite(LED_R, (int)random(0, 25));
+    analogWrite(LED_G, (int)random(0, 25));
+    analogWrite(LED_B, (int)random(0, 25));
+
+    delay(100);
+  }
 }
