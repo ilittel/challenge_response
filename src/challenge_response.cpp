@@ -20,11 +20,11 @@ const uint8_t SOLENOID_PIN = 10;
 const float REFERENCE_VOLTAGE = 1.107;
 const float VOLTAGE_DIVIDER_FACTOR = ((100.0 + 10.0) / 10.0);
 
-const float CHARGE_THRESHOLD_YELLOW = 5.5;
-const float CHARGE_THRESHOLD_GREEN = 7.0;
+const float CHARGE_THRESHOLD_YELLOW = 5.5; // TODO: re-determine after finishing final algorithm
+const float CHARGE_THRESHOLD_GREEN = 7.0; // TODO: re-determine after finishing final algorithm
 
-const float DISCHARGE_THRESHOLD_YELLOW = 5.0;
-const float DISCHARGE_THRESHOLD_RED = 4.5;
+const float DISCHARGE_THRESHOLD_YELLOW = 5.0; // TODO: re-determine after finishing final algorithm
+const float DISCHARGE_THRESHOLD_RED = 4.5; // TODO: re-determine after finishing final algorithm
 
 int lastAnswer = -1;
 uint8_t lastDigitsEntered = 0;
@@ -220,8 +220,9 @@ void updateProgramState() {
 void setProgramState(ProgramState newState) {
   switch(newState) {
     case STATE_CHARGING:
-      challenge = 4321; // TODO
-      correctAnswer = 1234; // TODO
+      randomSeed((unsigned long)(analogRead(A0) * analogRead(A1)));
+      challenge = (int)random(0, 9999);
+      correctAnswer = calculateAnswer();
       display.clear();
     break;
     case STATE_DISPLAYING_CHALLENGE:
@@ -243,34 +244,47 @@ void setProgramState(ProgramState newState) {
     break;
   }
 
-  programState = newState;  
+  programState = newState;
+}
+
+int calculateAnswer() {
+  // Reverse digits
+  int temp = challenge;
+  int answer = 0;
+  int multiplier = 1000;
+
+  while (multiplier != 0) {
+    answer += (temp % 10) * multiplier;
+    temp /= 10;
+    multiplier /= 10;
+  }
+
+  return answer;
 }
 
 void showAnswer() {
-  if (programState == STATE_ENTERING_RESPONSE) {
-    uint8_t segments[4];
+  uint8_t segments[4];
 
-    // Show between 1 and 4 digits, as we also need to show the digit that is being entered.
-    const uint8_t digitsToShow = min(lastDigitsEntered + 1, 4);
+  // Show between 1 and 4 digits, as we also need to show the digit that is being entered.
+  const uint8_t digitsToShow = min(lastDigitsEntered + 1, 4);
 
-    int partialNumber = lastAnswer;
-    int index = 3;
-    while (index >= 4 - digitsToShow) {
-      uint8_t digit = (uint8_t)(partialNumber % 10);
-      segments[index] = display.encodeDigit(digit);
+  int partialNumber = lastAnswer;
+  int index = 3;
+  while (index >= 4 - digitsToShow) {
+    uint8_t digit = (uint8_t)(partialNumber % 10);
+    segments[index] = display.encodeDigit(digit);
 
-      partialNumber /= 10;
-      index--;
-    }
-
-    // Set underscores to segments before
-    while (index >= 0) {
-      segments[index] = SEG_D;
-      index--;
-    }
-
-    display.setSegments(segments);
+    partialNumber /= 10;
+    index--;
   }
+
+  // Set underscores to segments before
+  while (index >= 0) {
+    segments[index] = SEG_D;
+    index--;
+  }
+
+  display.setSegments(segments);
 }
 
 void activateSolenoid() {

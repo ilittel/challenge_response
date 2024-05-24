@@ -31,6 +31,8 @@ void updateProgramState();
 
 void setProgramState(ProgramState newState);
 
+int calculateAnswer();
+
 void showAnswer();
 
 void activateSolenoid();
