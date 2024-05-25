@@ -27,7 +27,6 @@ RotaryInput& RotaryInput::init(byte pinA, byte pinB, byte pinButton) {
   pinMode(pinB, INPUT_PULLUP);
   pinMode(pinButton, INPUT_PULLUP);
 
-  // TODO: Don't we need to attach pinB??
   attachInterrupt(digitalPinToInterrupt(pinA), CHANGED_CALLBACK, CHANGE);
   attachInterrupt(digitalPinToInterrupt(pinButton), PRESSED_CALLBACK, CHANGE);
 
@@ -59,12 +58,10 @@ void RotaryInput::PRESSED_CALLBACK() {
 
 void RotaryInput::rotaryChangedCallback() {
   rotaryEncoder.rotaryUpdate();
-  nrChangedInterrupts++;
 }
 
 void RotaryInput::rotaryPressedCallback() {
   rotaryEncoder.switchUpdate();
-  nrPressedInterrupts++;
   RotaryEncoder::SwitchState currentSwitchState = (RotaryEncoder::SwitchState)rotaryEncoder.getSwitchState();
   if (lastSwitchState != currentSwitchState) {
     lastSwitchState = currentSwitchState;

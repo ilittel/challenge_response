@@ -12,12 +12,7 @@ class RotaryInput {
     uint8_t getDigitsEntered();
     int getAnswer();
 
-    // TODO: Remove these temporary variables. 
-    volatile unsigned int nrChangedInterrupts = 0;
-    volatile unsigned int nrPressedInterrupts = 0;
-
   private:
-    // TODO: Try to change to reference type
     static RotaryInput* INSTANCE;
 
     static void CHANGED_CALLBACK();
