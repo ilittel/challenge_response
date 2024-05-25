@@ -246,7 +246,7 @@ void setProgramState(ProgramState newState) {
 }
 
 void resetChallenge() {
-  randomSeed((unsigned long)(analogRead(A0) * analogRead(A1)));
+  randomSeed((unsigned long)(analogRead(A0) + analogRead(A1)));
   challenge = (int)random(0, 9999);
   correctAnswer = calculateAnswer();
 }
