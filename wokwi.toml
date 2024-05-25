@@ -1,0 +1,5 @@
+[wokwi]
+version = 1
+firmware = '.pio/build/pro8MHzatmega328/firmware.hex'
+elf = '.pio/build/pro8MHzatmega328/firmware.elf'
+gdbServerPort = 3333
