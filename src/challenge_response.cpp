@@ -177,9 +177,7 @@ void updatePowerIndicator() {
 }
 
 //
-// Updates the global program state.
-// 
-// Currently this function is not atomic, so it may only be called from the main loop!
+// Implements decision logic for updating global program state.
 // 
 void updateProgramState() {
   switch (programState) {
@@ -196,18 +194,15 @@ void updateProgramState() {
     case STATE_ENTERING_RESPONSE:
       showAnswer();
       if (lastDigitsEntered > 3) {
-        setProgramState(STATE_PROCESSING_RESPONSE);
+        if (lastAnswer == correctAnswer) {
+          setProgramState(STATE_ANSWERED_CORRECTLY);
+        } else {
+          setProgramState(STATE_DISPLAYING_CHALLENGE);
+        }
       }
     break;
-    // TODO: Kan deze state niet weg? De transitie kan ook gelijk hierboven plaatsvinden.
-    case STATE_PROCESSING_RESPONSE:
-      if (lastAnswer == correctAnswer) {
-        activateSolenoid();
-        // After activation, blink the RGB LED until we are out of power.
-        blinkTillTheEnd();
-      } else {
-        setProgramState(STATE_DISPLAYING_CHALLENGE);
-      }
+    case STATE_ANSWERED_CORRECTLY:
+      // Do nothing
     break;
     default:
       Serial.print("Error: unhandled state value: ");
@@ -217,6 +212,9 @@ void updateProgramState() {
   }
 }
 
+//
+// Implements state transition logic.
+// 
 void setProgramState(ProgramState newState) {
   switch(newState) {
     case STATE_CHARGING:
@@ -231,8 +229,10 @@ void setProgramState(ProgramState newState) {
     case STATE_ENTERING_RESPONSE:
       // Do nothing
     break;
-    case STATE_PROCESSING_RESPONSE:
-      // Do nothing
+    case STATE_ANSWERED_CORRECTLY:
+        activateSolenoid();
+        // After activation, blink the RGB LED until we are out of power.
+        blinkTillTheEnd();
     break;
     default:
       Serial.print("Error: invalid new state value: ");
