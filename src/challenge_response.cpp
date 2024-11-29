@@ -51,7 +51,7 @@ void setup() {
   Serial.begin(9600);
 
   // Set up display
-  display.setBrightness(1);
+  display.setBrightness(5);
 
   // Set up voltage reading
   analogReference(INTERNAL);
