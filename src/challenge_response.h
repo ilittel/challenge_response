@@ -10,6 +10,7 @@ enum ProgramState {
   STATE_CHARGING,
   STATE_DISPLAYING_CHALLENGE,
   STATE_ENTERING_RESPONSE,
+  STATE_ANSWERED_WRONGLY,
   STATE_ANSWERED_CORRECTLY
 };
 
@@ -36,6 +37,8 @@ void resetChallenge();
 int calculateAnswer();
 
 void showAnswer();
+
+void displayError();
 
 void activateSolenoid();
 

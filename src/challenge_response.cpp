@@ -40,6 +40,10 @@ PowerState powerState = RED;
 volatile ProgramState programState = STATE_UNINITIALIZED;
 
 uint8_t INITIAL_SEGMENTS[4] = { SEG_G, SEG_G, SEG_G, SEG_G };
+uint8_t ERROR_SEGMENTS[4] = { SEG_A | SEG_D | SEG_E | SEG_F | SEG_G, 
+                              SEG_A | SEG_E | SEG_F, 
+                              SEG_A | SEG_E | SEG_F, 
+                              0 };
 
 void setup() {
   // TODO: Remove all serial comms after debugging.
@@ -180,6 +184,14 @@ void updatePowerIndicator() {
 // Implements decision logic for updating global program state.
 // 
 void updateProgramState() {
+  // Serial.print("programState = ");
+  // Serial.println(programState);
+  // Serial.print("lastAnswer = ");
+  // Serial.println(lastAnswer);
+  // Serial.print("lastDigitsEntered = ");
+  // Serial.println(lastDigitsEntered);
+  // Serial.flush();
+
   switch (programState) {
     case STATE_CHARGING:
       if (powerState == GREEN) {
@@ -197,9 +209,12 @@ void updateProgramState() {
         if (lastAnswer == correctAnswer) {
           setProgramState(STATE_ANSWERED_CORRECTLY);
         } else {
-          setProgramState(STATE_DISPLAYING_CHALLENGE);
+          setProgramState(STATE_ANSWERED_WRONGLY);
         }
       }
+    break;
+    case STATE_ANSWERED_WRONGLY:
+      setProgramState(STATE_DISPLAYING_CHALLENGE);
     break;
     case STATE_ANSWERED_CORRECTLY:
       // Do nothing
@@ -229,10 +244,13 @@ void setProgramState(ProgramState newState) {
     case STATE_ENTERING_RESPONSE:
       // Do nothing
     break;
+    case STATE_ANSWERED_WRONGLY:
+      displayError();
+    break;
     case STATE_ANSWERED_CORRECTLY:
-        activateSolenoid();
-        // After activation, blink the RGB LED until we are out of power.
-        blinkTillTheEnd();
+      activateSolenoid();
+      // After activation, blink the RGB LED until we are out of power.
+      blinkTillTheEnd();
     break;
     default:
       Serial.print("Error: invalid new state value: ");
@@ -289,6 +307,11 @@ void showAnswer() {
   }
 
   display.setSegments(segments);
+}
+
+void displayError() {
+  display.setSegments(ERROR_SEGMENTS);
+  delay(1000);
 }
 
 void activateSolenoid() {
