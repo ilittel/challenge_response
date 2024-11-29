@@ -224,7 +224,7 @@ void setProgramState(ProgramState newState) {
       resetChallenge();
       // Reset rotary input to prevent immediate transition to 'entering response' state.
       rotaryInput.reset();
-      display.showNumberDec(challenge);
+      display.showNumberDec(challenge, true);
     break;
     case STATE_ENTERING_RESPONSE:
       // Do nothing
