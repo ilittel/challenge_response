@@ -17,6 +17,8 @@ const uint8_t LED_G = 6;
 const uint8_t LED_B = 5;
 const uint8_t SOLENOID_PIN = 10;
 
+const int PUZZLE_SOLUTION_ABCD = 7828;
+
 const float REFERENCE_VOLTAGE = 1.107;
 const float VOLTAGE_DIVIDER_FACTOR = ((100.0 + 10.0) / 10.0);
 
@@ -270,18 +272,7 @@ void resetChallenge() {
 }
 
 int calculateAnswer() {
-  // Reverse digits
-  int temp = challenge;
-  int answer = 0;
-  int multiplier = 1000;
-
-  while (multiplier != 0) {
-    answer += (temp % 10) * multiplier;
-    temp /= 10;
-    multiplier /= 10;
-  }
-
-  return answer;
+  return (PUZZLE_SOLUTION_ABCD ^ challenge) % 10000;
 }
 
 void showAnswer() {
