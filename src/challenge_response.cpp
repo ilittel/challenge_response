@@ -22,11 +22,11 @@ const int PUZZLE_SOLUTION_ABCD = 7828;
 const float REFERENCE_VOLTAGE = 1.107;
 const float VOLTAGE_DIVIDER_FACTOR = ((100.0 + 10.0) / 10.0);
 
-const float CHARGE_THRESHOLD_YELLOW = 5.5; // TODO: re-determine after finishing final algorithm
-const float CHARGE_THRESHOLD_GREEN = 7.0; // TODO: re-determine after finishing final algorithm
+const float CHARGE_THRESHOLD_YELLOW = 5.5;
+const float CHARGE_THRESHOLD_GREEN = 7.0;
 
-const float DISCHARGE_THRESHOLD_YELLOW = 5.0; // TODO: re-determine after finishing final algorithm
-const float DISCHARGE_THRESHOLD_RED = 4.5; // TODO: re-determine after finishing final algorithm
+const float DISCHARGE_THRESHOLD_YELLOW = 5.0;
+const float DISCHARGE_THRESHOLD_RED = 4.5;
 
 int lastAnswer = -1;
 uint8_t lastDigitsEntered = 0;
@@ -48,7 +48,6 @@ uint8_t ERROR_SEGMENTS[4] = { SEG_A | SEG_D | SEG_E | SEG_F | SEG_G,
                               0 };
 
 void setup() {
-  // TODO: Remove all serial comms after debugging.
   // initialize serial communication at 9600 bits per second:  
   Serial.begin(9600);
 
