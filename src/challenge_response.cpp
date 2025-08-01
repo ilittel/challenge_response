@@ -75,8 +75,7 @@ void loop() {
     timerProcessed = true;
   }
 
-  updatePowerState();
-  updateProgramState();
+  update();
 
   noInterrupts();
   // Check if input has changed.
@@ -108,6 +107,12 @@ void loop() {
 
 bool watchDogTimerOn() {
   return (WDTCSR & (1<<WDIE));
+}
+
+void update() {
+  updatePowerState();
+  updateProgramState();
+  updateOutput();
 }
 
 void updatePowerState() {
@@ -203,7 +208,6 @@ void updateProgramState() {
       }
     break;
     case STATE_ENTERING_RESPONSE:
-      showAnswer();
       if (lastDigitsEntered > 3) {
         if (lastAnswer == correctAnswer) {
           setProgramState(STATE_ANSWERED_CORRECTLY);
@@ -216,8 +220,12 @@ void updateProgramState() {
       setProgramState(STATE_DISPLAYING_CHALLENGE);
     break;
     case STATE_ANSWERED_CORRECTLY:
-      // Do nothing
+      setProgramState(STATE_BLINKING);
     break;
+    case STATE_BLINKING:
+      if (powerState != GREEN) {
+        setProgramState(STATE_CHARGING);
+      }
     default:
       Serial.print("Error: unhandled state value: ");
       Serial.println(programState);
@@ -226,40 +234,39 @@ void updateProgramState() {
   }
 }
 
-//
-// Implements state transition logic.
-// 
 void setProgramState(ProgramState newState) {
-  switch(newState) {
+  programState = newState;
+}
+
+void updateOutput() {
+  switch(programState) {
     case STATE_CHARGING:
       display.clear();
+      resetChallenge();
     break;
     case STATE_DISPLAYING_CHALLENGE:
-      resetChallenge();
       // Reset rotary input to prevent immediate transition to 'entering response' state.
       rotaryInput.reset();
       display.showNumberDec(challenge, true);
     break;
     case STATE_ENTERING_RESPONSE:
-      // Do nothing
+      showAnswer();
     break;
     case STATE_ANSWERED_WRONGLY:
       displayError();
     break;
     case STATE_ANSWERED_CORRECTLY:
       activateSolenoid();
-      // After activation, blink the RGB LED until we are out of power.
-      blinkTillTheEnd();
     break;
+    case STATE_BLINKING:
+      blink();
     default:
-      Serial.print("Error: invalid new state value: ");
-      Serial.println(newState);
+      Serial.print("Error: invalid state value: ");
+      Serial.println(programState);
       Serial.flush();
       return;
     break;
   }
-
-  programState = newState;
 }
 
 void resetChallenge() {
@@ -322,8 +329,11 @@ void activateSolenoid() {
   digitalWrite(SOLENOID_PIN, LOW);
 }
 
-void blinkTillTheEnd() {
-  while (true) {
+void blink() {
+  // Wait until the power state is no longer green. This forces the user to recharge,
+  // which in turh causes the solenoid capacitor to get enough charge again.
+  while (powerState == GREEN) {
+    updatePowerState();
     analogWrite(LED_R, (int)random(0, 25));
     analogWrite(LED_G, (int)random(0, 25));
     analogWrite(LED_B, (int)random(0, 25));

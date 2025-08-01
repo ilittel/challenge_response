@@ -11,7 +11,8 @@ enum ProgramState {
   STATE_DISPLAYING_CHALLENGE,
   STATE_ENTERING_RESPONSE,
   STATE_ANSWERED_WRONGLY,
-  STATE_ANSWERED_CORRECTLY
+  STATE_ANSWERED_CORRECTLY,
+  STATE_BLINKING
 };
 
 enum PowerState {
@@ -21,6 +22,8 @@ enum PowerState {
 };
 
 bool watchDogTimerOn();
+
+void update();
 
 void updatePowerState();
 
@@ -32,6 +35,8 @@ void updateProgramState();
 
 void setProgramState(ProgramState newState);
 
+void updateOutput();
+
 void resetChallenge();
 
 int calculateAnswer();
@@ -42,4 +47,4 @@ void displayError();
 
 void activateSolenoid();
 
-void blinkTillTheEnd();
+void blink();
