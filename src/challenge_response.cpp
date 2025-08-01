@@ -220,12 +220,8 @@ void updateProgramState() {
       setProgramState(STATE_DISPLAYING_CHALLENGE);
     break;
     case STATE_ANSWERED_CORRECTLY:
-      setProgramState(STATE_BLINKING);
+      setProgramState(STATE_CHARGING);
     break;
-    case STATE_BLINKING:
-      if (powerState != GREEN) {
-        setProgramState(STATE_CHARGING);
-      }
     default:
       Serial.print("Error: unhandled state value: ");
       Serial.println(programState);
@@ -257,14 +253,12 @@ void updateOutput() {
     break;
     case STATE_ANSWERED_CORRECTLY:
       activateSolenoid();
-    break;
-    case STATE_BLINKING:
       blink();
+    break;
     default:
       Serial.print("Error: invalid state value: ");
       Serial.println(programState);
       Serial.flush();
-      return;
     break;
   }
 }
@@ -330,7 +324,7 @@ void activateSolenoid() {
 }
 
 void blink() {
-  // Wait until the power state is no longer green. This forces the user to recharge,
+  // HACK: Capture the event loop and wait until the power state is no longer green. This forces the user to recharge,
   // which in turh causes the solenoid capacitor to get enough charge again.
   while (powerState == GREEN) {
     updatePowerState();
