@@ -9,7 +9,7 @@ RotaryInput::RotaryInput(byte pinA, byte pinB, byte pinButton)
  
   rotaryEncoder.enableInternalRotaryPullups();
   rotaryEncoder.enableInternalSwitchPullup();
-  rotaryEncoder.setRotaryLimits(0, 9, false);
+  rotaryEncoder.setRotaryLimits(0, 9, true);
   rotaryEncoder.setSwitchDebounceDelay(0); // Debounce doesn't seem to be required and misses clicks if >5ms
   reset();
 }
