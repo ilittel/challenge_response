@@ -40,7 +40,7 @@ void resetChallenge();
 
 int calculateAnswer();
 
-void showAnswer();
+void displayCurrentAnswer();
 
 void displayError();
 

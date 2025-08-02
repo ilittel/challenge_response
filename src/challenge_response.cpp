@@ -246,7 +246,7 @@ void updateOutput() {
       display.showNumberDec(challenge, true);
     break;
     case STATE_ENTERING_RESPONSE:
-      showAnswer();
+      displayCurrentAnswer();
     break;
     case STATE_ANSWERED_WRONGLY:
       displayError();
@@ -284,25 +284,47 @@ int calculateAnswer() {
   return answer;
 }
 
-void showAnswer() {
+//
+// Displays the current answer being edited on the 4-digit display. 
+// Editing is from left to right, with underscores representing the numbers that are not given yet.
+//
+void displayCurrentAnswer() {
+//
+// Algorithm example:
+//
+// input = 20X, where X is digit being entered
+// 1. Set rightmost index to underscore
+// -> editIndex = 3;
+// -> segments[3] = _
+// 2. Fill remaining indexes with numbers, right to left
+// -> partialNumber = 20X
+// -> index = 2
+// -> segments[2] = partialNumber % 10 = X;
+// -> partialNumber /= 10 = 20;
+// -> index = 1
+// -> segments[1] = partialNumber % 10 = 0;
+// -> partialNumber /= 10 = 2;
+// -> index = 0
+// -> segments[0] = partialNumber % 10 = 2;
+
   uint8_t segments[4];
 
-  // Show between 1 and 4 digits, as we also need to show the digit that is being entered.
-  const uint8_t digitsToShow = min(lastDigitsEntered + 1, 4);
+  const uint8_t editIndex = lastDigitsEntered;
 
-  int partialNumber = lastAnswer;
   int index = 3;
-  while (index >= 4 - digitsToShow) {
+  // Start setting underscores to the rightmost segments
+  while (index > editIndex) {
+    segments[index] = SEG_D;
+    index--;
+  }
+
+  // Then set the segments representing the number, also from right to left
+  int partialNumber = lastAnswer;
+  while (index >= 0) {
     uint8_t digit = (uint8_t)(partialNumber % 10);
     segments[index] = display.encodeDigit(digit);
 
     partialNumber /= 10;
-    index--;
-  }
-
-  // Set underscores to segments before
-  while (index >= 0) {
-    segments[index] = SEG_D;
     index--;
   }
 
