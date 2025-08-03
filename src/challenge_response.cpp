@@ -270,18 +270,7 @@ void resetChallenge() {
 }
 
 int calculateAnswer() {
-  // Reverse digits
-  int temp = challenge;
-  int answer = 0;
-  int multiplier = 1000;
-
-  while (multiplier != 0) {
-    answer += (temp % 10) * multiplier;
-    temp /= 10;
-    multiplier /= 10;
-  }
-
-  return answer;
+  return (int)(20250830L % challenge);
 }
 
 //
