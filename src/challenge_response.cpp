@@ -2,7 +2,6 @@
 #include "challenge_response.h"
 
 #include <TM1637Display.h>
-#include "RotaryInput.h"
 #include <LowPower.h>
 #include <avr/sleep.h>
 
@@ -31,7 +30,7 @@ uint8_t lastDigitsEntered = 0;
 bool timerProcessed = false;
 
 TM1637Display display = TM1637Display(CLK, DIO);
-RotaryInput& rotaryInput = RotaryInput::init(ROTARY_PIN_A, ROTARY_PIN_B, ROTARY_PIN_BUTTON);
+AnswerInput& answerInput = AnswerInput::init(ROTARY_PIN_A, ROTARY_PIN_B, ROTARY_PIN_BUTTON);
 
 int challenge = 0;
 int correctAnswer = 0;
@@ -79,12 +78,12 @@ void loop() {
 
   noInterrupts();
   // Check if input has changed.
-  if (rotaryInput.getAnswer() != lastAnswer ||
-      rotaryInput.getDigitsEntered() != lastDigitsEntered) {
+  if (answerInput.getAnswer() != lastAnswer ||
+      answerInput.getDigitsEntered() != lastDigitsEntered) {
     // Store answer + digits entered into variables and use those everywhere else so we
     // don't have the risk of suddenly updated values.
-    lastAnswer = rotaryInput.getAnswer();
-    lastDigitsEntered = rotaryInput.getDigitsEntered();
+    lastAnswer = answerInput.getAnswer();
+    lastDigitsEntered = answerInput.getDigitsEntered();
 
     interrupts();
     // (After this point, loop() is re-entered to process changes and see if other changes were made; 
@@ -242,7 +241,7 @@ void updateOutput() {
     break;
     case STATE_DISPLAYING_CHALLENGE:
       // Reset rotary input to prevent immediate transition to 'entering response' state.
-      rotaryInput.reset();
+      answerInput.reset();
       display.showNumberDec(challenge, true);
     break;
     case STATE_ENTERING_RESPONSE:

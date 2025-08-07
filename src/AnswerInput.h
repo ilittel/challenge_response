@@ -4,16 +4,16 @@
 #include <FR_RotaryEncoder.h>
 #include <Arduino.h>
 
-class RotaryInput {
+class AnswerInput {
   public:
-    static RotaryInput& init(byte pinA, byte pinB, byte pinButton);
+    static AnswerInput& init(byte pinA, byte pinB, byte pinButton);
 
     void reset();
     uint8_t getDigitsEntered();
     int getAnswer();
 
   private:
-    static RotaryInput* INSTANCE;
+    static AnswerInput* INSTANCE;
 
     static void CHANGED_CALLBACK();
     static void PRESSED_CALLBACK();
@@ -21,7 +21,7 @@ class RotaryInput {
     void rotaryChangedCallback();
     void rotaryPressedCallback();
 
-    RotaryInput(byte pinA, byte pinB, byte pinButton);
+    AnswerInput(byte pinA, byte pinB, byte pinButton);
     
     byte pinA;
     byte pinButton;

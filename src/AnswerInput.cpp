@@ -1,8 +1,8 @@
-#include "RotaryInput.h"
+#include "AnswerInput.h"
 
-RotaryInput* RotaryInput::INSTANCE = NULL;
+AnswerInput* AnswerInput::INSTANCE = NULL;
 
-RotaryInput::RotaryInput(byte pinA, byte pinB, byte pinButton)
+AnswerInput::AnswerInput(byte pinA, byte pinB, byte pinButton)
   : rotaryEncoder(pinA, pinB, pinButton) {
   this->pinA = pinA;
   this->pinButton = pinButton;
@@ -14,14 +14,14 @@ RotaryInput::RotaryInput(byte pinA, byte pinB, byte pinButton)
   reset();
 }
 
-RotaryInput& RotaryInput::init(byte pinA, byte pinB, byte pinButton) {
+AnswerInput& AnswerInput::init(byte pinA, byte pinB, byte pinButton) {
   if (INSTANCE != NULL) {
     detachInterrupt(digitalPinToInterrupt(INSTANCE->pinA));
     detachInterrupt(digitalPinToInterrupt(INSTANCE->pinButton));
     delete INSTANCE;
   }
   
-  INSTANCE = new RotaryInput(pinA, pinB, pinButton);
+  INSTANCE = new AnswerInput(pinA, pinB, pinButton);
 
   pinMode(pinA, INPUT_PULLUP);
   pinMode(pinB, INPUT_PULLUP);
@@ -33,34 +33,34 @@ RotaryInput& RotaryInput::init(byte pinA, byte pinB, byte pinButton) {
   return *INSTANCE;
 }
 
-void RotaryInput::reset() {
+void AnswerInput::reset() {
   partialAnswer = 0;
   digitsEntered = 0;
   lastSwitchState = RotaryEncoder::SwitchState::SW_OFF;
   rotaryEncoder.setPosition(-1);
 }
 
-int RotaryInput::getAnswer() {
+int AnswerInput::getAnswer() {
   return partialAnswer + rotaryEncoder.getPosition();
 }
 
-uint8_t RotaryInput::getDigitsEntered() {
+uint8_t AnswerInput::getDigitsEntered() {
   return digitsEntered;
 }
 
-void RotaryInput::CHANGED_CALLBACK() {
+void AnswerInput::CHANGED_CALLBACK() {
   INSTANCE->rotaryChangedCallback();
 }
 
-void RotaryInput::PRESSED_CALLBACK() {
+void AnswerInput::PRESSED_CALLBACK() {
   INSTANCE->rotaryPressedCallback();
 }
 
-void RotaryInput::rotaryChangedCallback() {
+void AnswerInput::rotaryChangedCallback() {
   rotaryEncoder.rotaryUpdate();
 }
 
-void RotaryInput::rotaryPressedCallback() {
+void AnswerInput::rotaryPressedCallback() {
   rotaryEncoder.switchUpdate();
   RotaryEncoder::SwitchState currentSwitchState = (RotaryEncoder::SwitchState)rotaryEncoder.getSwitchState();
   if (lastSwitchState != currentSwitchState) {
