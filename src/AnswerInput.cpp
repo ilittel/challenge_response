@@ -68,19 +68,24 @@ void AnswerInput::rotaryPressedCallback() {
   if (lastSwitchState != currentSwitchState) {
     lastSwitchState = currentSwitchState;
 
-    int position = rotaryEncoder.getPosition();
-    if (position > -1 && currentSwitchState == rotaryEncoder.SW_ON) {
-      if (digitsEntered < 3) {
-        partialAnswer = (partialAnswer + position) * 10;
+    if (currentSwitchState == rotaryEncoder.SW_ON) {
+      int position = rotaryEncoder.getPosition();
+      if (position == -1) {
+        // Set position to zero to indicate that an answer is being edited
         rotaryEncoder.setPosition(0);
-      }
+      } else {
+        if (digitsEntered < 3) {
+          partialAnswer = (partialAnswer + position) * 10;
+          rotaryEncoder.setPosition(0);
+        }
 
-      if (digitsEntered < 4) {
-        digitsEntered++;
+        if (digitsEntered < 4) {
+          digitsEntered++;
+        }
       }
     }
+    isChanged = true;
   }
-  isChanged = true;
 }
 
 bool AnswerInput::readChanged() {
