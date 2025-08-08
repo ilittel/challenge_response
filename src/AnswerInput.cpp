@@ -88,7 +88,7 @@ void AnswerInput::rotaryPressedCallback() {
   }
 }
 
-bool AnswerInput::readChanged() {
+bool AnswerInput::getAndResetUpdate() {
   noInterrupts();
 
   bool result = isChanged;

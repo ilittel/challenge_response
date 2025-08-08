@@ -72,7 +72,7 @@ void loop() {
   update();
 
   // Check if input has changed.
-  if (answerInput.readChanged()) {
+  if (answerInput.getAndResetUpdate()) {
     // (After this point, loop() is re-entered to process changes and see if other changes were made; 
     // otherwise, go to sleep (again).)
   } else { // input hasn't changed -> go to sleep.
