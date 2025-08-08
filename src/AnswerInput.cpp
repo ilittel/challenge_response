@@ -38,6 +38,7 @@ void AnswerInput::reset() {
   digitsEntered = 0;
   lastSwitchState = RotaryEncoder::SwitchState::SW_OFF;
   rotaryEncoder.setPosition(-1);
+  isChanged = false;
 }
 
 int AnswerInput::getAnswer() {
@@ -58,6 +59,7 @@ void AnswerInput::PRESSED_CALLBACK() {
 
 void AnswerInput::rotaryChangedCallback() {
   rotaryEncoder.rotaryUpdate();
+  isChanged = true;
 }
 
 void AnswerInput::rotaryPressedCallback() {
@@ -78,4 +80,19 @@ void AnswerInput::rotaryPressedCallback() {
       }
     }
   }
+  isChanged = true;
+}
+
+bool AnswerInput::readChanged() {
+  noInterrupts();
+
+  bool result = isChanged;
+  isChanged = false;
+
+  interrupts();
+  return result;
+}
+
+bool AnswerInput::isFinalAnswer() {
+  return digitsEntered == 4;
 }

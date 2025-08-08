@@ -25,8 +25,6 @@ const float CHARGE_THRESHOLD_GREEN = 7.0;
 const float DISCHARGE_THRESHOLD_YELLOW = 5.0;
 const float DISCHARGE_THRESHOLD_RED = 4.5;
 
-int lastAnswer = -1;
-uint8_t lastDigitsEntered = 0;
 bool timerProcessed = false;
 
 TM1637Display display = TM1637Display(CLK, DIO);
@@ -66,32 +64,20 @@ void setup() {
 }
 
 void loop() {
-  noInterrupts();
-  bool watchDogTimerEnabled = watchDogTimerOn();
-  interrupts();
-  if (!watchDogTimerEnabled && !timerProcessed) { // Loop was re-entered because of sleep timeout and it wasn't processed yet.
+  if (!isWatchDogTimerOn() && !timerProcessed) { // Loop was re-entered because of sleep timeout and it wasn't processed yet.
     updatePowerIndicator();
     timerProcessed = true;
   }
 
   update();
 
-  noInterrupts();
   // Check if input has changed.
-  if (answerInput.getAnswer() != lastAnswer ||
-      answerInput.getDigitsEntered() != lastDigitsEntered) {
-    // Store answer + digits entered into variables and use those everywhere else so we
-    // don't have the risk of suddenly updated values.
-    lastAnswer = answerInput.getAnswer();
-    lastDigitsEntered = answerInput.getDigitsEntered();
-
-    interrupts();
+  if (answerInput.readChanged()) {
     // (After this point, loop() is re-entered to process changes and see if other changes were made; 
     // otherwise, go to sleep (again).)
   } else { // input hasn't changed -> go to sleep.
-    if (watchDogTimerOn()) { // Last sleep period isn't over yet.
+    if (isWatchDogTimerOn()) { // Last sleep period isn't over yet.
       sleep_enable();
-      interrupts();
       sleep_cpu();
       // (At this point, sleep was interrupted again by pin interrupt or sleep timeout.)
       sleep_disable();
@@ -104,8 +90,12 @@ void loop() {
   }
 }
 
-bool watchDogTimerOn() {
-  return (WDTCSR & (1<<WDIE));
+bool isWatchDogTimerOn() {
+  noInterrupts();
+  bool result = (WDTCSR & (1<<WDIE));
+  interrupts();
+
+  return result;
 }
 
 void update() {
@@ -202,13 +192,13 @@ void updateProgramState() {
       }
     break;
     case STATE_DISPLAYING_CHALLENGE:
-      if (lastAnswer > -1) {
+      if (answerInput.getAnswer() != -1) {
         setProgramState(STATE_ENTERING_RESPONSE);
       }
     break;
     case STATE_ENTERING_RESPONSE:
-      if (lastDigitsEntered > 3) {
-        if (lastAnswer == correctAnswer) {
+      if (answerInput.isFinalAnswer()) {
+        if (answerInput.getAnswer() == correctAnswer) {
           setProgramState(STATE_ANSWERED_CORRECTLY);
         } else {
           setProgramState(STATE_ANSWERED_WRONGLY);
@@ -240,7 +230,8 @@ void updateOutput() {
       resetChallenge();
     break;
     case STATE_DISPLAYING_CHALLENGE:
-      // Reset rotary input to prevent immediate transition to 'entering response' state.
+      // Reset answer input to prevent immediate transition to 'entering response' state.
+      // TODO: Shouldn't this statement be in updateProgramState()?
       answerInput.reset();
       display.showNumberDec(challenge, true);
     break;
@@ -297,7 +288,7 @@ void displayCurrentAnswer() {
 
   uint8_t segments[4];
 
-  const uint8_t editIndex = lastDigitsEntered;
+  const uint8_t editIndex = answerInput.getDigitsEntered();
 
   int index = 3;
   // Start setting underscores to the rightmost segments
@@ -307,7 +298,7 @@ void displayCurrentAnswer() {
   }
 
   // Then set the segments representing the number, also from right to left
-  int partialNumber = lastAnswer;
+  int partialNumber = answerInput.getAnswer();
   while (index >= 0) {
     uint8_t digit = (uint8_t)(partialNumber % 10);
     segments[index] = display.encodeDigit(digit);

@@ -11,6 +11,8 @@ class AnswerInput {
     void reset();
     uint8_t getDigitsEntered();
     int getAnswer();
+    bool readChanged();
+    bool isFinalAnswer();
 
   private:
     static AnswerInput* INSTANCE;
@@ -30,8 +32,8 @@ class AnswerInput {
 
     volatile uint8_t digitsEntered = 0;
     volatile unsigned int partialAnswer = 0;
-    volatile uint8_t lastDigitValue = 0;
     volatile RotaryEncoder::SwitchState lastSwitchState = RotaryEncoder::SwitchState::SW_OFF;
+    volatile bool isChanged = false;
 };
 
 #endif

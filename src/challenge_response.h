@@ -20,7 +20,7 @@ enum PowerState {
   RED
 };
 
-bool watchDogTimerOn();
+bool isWatchDogTimerOn();
 
 void update();
 
