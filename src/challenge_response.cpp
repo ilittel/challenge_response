@@ -180,6 +180,9 @@ void updateProgramState() {
   switch (programState) {
     case STATE_CHARGING:
       if (powerState == GREEN) {
+        resetChallenge();
+        // Resetting the answer input also prevents immediate transition to 'entering response' state.
+        answerInput.reset();
         setProgramState(STATE_DISPLAYING_CHALLENGE);
       }
     break;
@@ -198,6 +201,8 @@ void updateProgramState() {
       }
     break;
     case STATE_ANSWERED_WRONGLY:
+      // Resetting the answer input also prevents immediate transition to 'entering response' state.
+      answerInput.reset();
       setProgramState(STATE_DISPLAYING_CHALLENGE);
     break;
     case STATE_ANSWERED_CORRECTLY:
@@ -219,12 +224,8 @@ void updateOutput() {
   switch(programState) {
     case STATE_CHARGING:
       display.clear();
-      resetChallenge();
     break;
     case STATE_DISPLAYING_CHALLENGE:
-      // Reset answer input to prevent immediate transition to 'entering response' state.
-      // TODO: Shouldn't this statement be in updateProgramState()?
-      answerInput.reset();
       display.showNumberDec(challenge, true);
     break;
     case STATE_ENTERING_RESPONSE:
