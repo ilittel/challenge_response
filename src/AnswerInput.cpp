@@ -34,18 +34,22 @@ AnswerInput& AnswerInput::init(byte pinA, byte pinB, byte pinButton) {
 }
 
 void AnswerInput::reset() {
-  partialAnswer = 0;
-  digitsEntered = 0;
+  answer = 0;
+  digitsEntered = -1;
   lastSwitchState = RotaryEncoder::SwitchState::SW_OFF;
-  rotaryEncoder.setPosition(-1);
+  rotaryEncoder.setPosition(0);
   isChanged = false;
 }
 
-int AnswerInput::getAnswer() {
-  return partialAnswer + rotaryEncoder.getPosition();
+int AnswerInput::getEditAnswer() {
+  return answer * 10 + rotaryEncoder.getPosition();
 }
 
-uint8_t AnswerInput::getDigitsEntered() {
+int AnswerInput::getEnteredAnswer() {
+  return answer;
+}
+
+int AnswerInput::getDigitsEntered() {
   return digitsEntered;
 }
 
@@ -59,6 +63,11 @@ void AnswerInput::PRESSED_CALLBACK() {
 
 void AnswerInput::rotaryChangedCallback() {
   rotaryEncoder.rotaryUpdate();
+
+  // Set digitsEntered to zero to indicate that an answer is being edited.
+  if (digitsEntered == -1) {
+    digitsEntered = 0;
+  }
   isChanged = true;
 }
 
@@ -69,20 +78,11 @@ void AnswerInput::rotaryPressedCallback() {
     lastSwitchState = currentSwitchState;
 
     if (currentSwitchState == rotaryEncoder.SW_ON) {
-      int position = rotaryEncoder.getPosition();
-      if (position == -1) {
-        // Set position to zero to indicate that an answer is being edited
-        rotaryEncoder.setPosition(0);
-      } else {
-        if (digitsEntered < 3) {
-          partialAnswer = (partialAnswer + position) * 10;
-          rotaryEncoder.setPosition(0);
-        }
+      answer = getEditAnswer();
+      digitsEntered++;
 
-        if (digitsEntered < 4) {
-          digitsEntered++;
-        }
-      }
+      // Reset position to zero for next entry
+      rotaryEncoder.setPosition(0);
     }
     isChanged = true;
   }
@@ -96,8 +96,4 @@ bool AnswerInput::getAndResetUpdate() {
 
   interrupts();
   return result;
-}
-
-bool AnswerInput::isFinalAnswer() {
-  return digitsEntered == 4;
 }

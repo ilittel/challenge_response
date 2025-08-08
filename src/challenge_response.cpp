@@ -177,14 +177,6 @@ void updatePowerIndicator() {
 // Implements decision logic for updating global program state.
 // 
 void updateProgramState() {
-  // Serial.print("programState = ");
-  // Serial.println(programState);
-  // Serial.print("lastAnswer = ");
-  // Serial.println(lastAnswer);
-  // Serial.print("lastDigitsEntered = ");
-  // Serial.println(lastDigitsEntered);
-  // Serial.flush();
-
   switch (programState) {
     case STATE_CHARGING:
       if (powerState == GREEN) {
@@ -192,13 +184,13 @@ void updateProgramState() {
       }
     break;
     case STATE_DISPLAYING_CHALLENGE:
-      if (answerInput.getAnswer() != -1) {
+      if (answerInput.getDigitsEntered() != -1) {
         setProgramState(STATE_ENTERING_RESPONSE);
       }
     break;
     case STATE_ENTERING_RESPONSE:
-      if (answerInput.isFinalAnswer()) {
-        if (answerInput.getAnswer() == correctAnswer) {
+      if (answerInput.getDigitsEntered() == 4) {
+        if (answerInput.getEnteredAnswer() == correctAnswer) {
           setProgramState(STATE_ANSWERED_CORRECTLY);
         } else {
           setProgramState(STATE_ANSWERED_WRONGLY);
@@ -298,7 +290,7 @@ void displayCurrentAnswer() {
   }
 
   // Then set the segments representing the number, also from right to left
-  int partialNumber = answerInput.getAnswer();
+  int partialNumber = answerInput.getEditAnswer();
   while (index >= 0) {
     uint8_t digit = (uint8_t)(partialNumber % 10);
     segments[index] = display.encodeDigit(digit);

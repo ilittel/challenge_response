@@ -24,25 +24,26 @@ class AnswerInput {
 
     /** 
      * Returns the number of digits that were entered by pressing the rotary switch.
-     */
-    uint8_t getDigitsEntered();
-
-    /**
-     * Returns the current (possibly incomplete) answer.
      * 
      * A negative value indicates that no answer is being entered yet.
      */
-    int getAnswer();
+    int getDigitsEntered();
+
+    /**
+     * Returns the answer that is being edited, i.e. including the digit that is being changed
+     * by the rotary.
+     */
+    int getEditAnswer();
+
+    /**
+     * Returns the number formed by the digits entered (confirmed) by the rotary switch.
+     */
+    int getEnteredAnswer();
 
     /**
      * Returns whether the answer input has changed and resets it.
      */
     bool getAndResetUpdate();
-
-    /** 
-     * Returns true if all digits are entered.
-     */
-    bool isFinalAnswer();
 
   private:
     static AnswerInput* INSTANCE;
@@ -60,8 +61,8 @@ class AnswerInput {
 
     RotaryEncoder rotaryEncoder;
 
-    volatile uint8_t digitsEntered = 0;
-    volatile unsigned int partialAnswer = 0;
+    volatile int digitsEntered = -1;
+    volatile int answer = 0;
     volatile RotaryEncoder::SwitchState lastSwitchState = RotaryEncoder::SwitchState::SW_OFF;
     volatile bool isChanged = false;
 };
