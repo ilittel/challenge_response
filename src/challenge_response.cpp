@@ -236,7 +236,7 @@ void updateOutput() {
     break;
     case STATE_ANSWERED_CORRECTLY:
       activateSolenoid();
-      blink();
+      blinkTillTheEnd();
     break;
     default:
       Serial.print("Error: invalid state value: ");
@@ -318,11 +318,9 @@ void activateSolenoid() {
   digitalWrite(SOLENOID_PIN, LOW);
 }
 
-void blink() {
-  // HACK: Capture the event loop and wait until the power state is no longer green. This forces the user to recharge,
-  // which in turh causes the solenoid capacitor to get enough charge again.
-  while (powerState == GREEN) {
-    updatePowerState();
+void blinkTillTheEnd() {
+  // Capture the event loop and write random values to the RGB LED until we run out of power.
+  while (true) {
     analogWrite(LED_R, (int)random(0, 25));
     analogWrite(LED_G, (int)random(0, 25));
     analogWrite(LED_B, (int)random(0, 25));

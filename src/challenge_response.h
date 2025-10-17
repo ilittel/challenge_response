@@ -46,4 +46,4 @@ void displayError();
 
 void activateSolenoid();
 
-void blink();
+void blinkTillTheEnd();
