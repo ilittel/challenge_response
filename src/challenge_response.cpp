@@ -253,7 +253,8 @@ void resetChallenge() {
 }
 
 int calculateAnswer() {
-  return (int)(20250830L % challenge);
+  // 7320 == CDAB in puzzle
+  return (int)(7320 & challenge);
 }
 
 //
