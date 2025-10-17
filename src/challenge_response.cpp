@@ -42,6 +42,10 @@ uint8_t ERROR_SEGMENTS[4] = { SEG_A | SEG_D | SEG_E | SEG_F | SEG_G,
                               SEG_A | SEG_E | SEG_F, 
                               0 };
 
+// Indicates whether a cursor ("_") should be displayed instead of the digit being entered on the 7-segment display.
+// Only used in answer entry mode.
+boolean doCursorBlink = false;
+
 void setup() {
   // initialize serial communication at 9600 bits per second:  
   Serial.begin(9600);
@@ -66,7 +70,11 @@ void setup() {
 void loop() {
   if (!isWatchDogTimerOn() && !timerProcessed) { // Loop was re-entered because of sleep timeout and it wasn't processed yet.
     updatePowerIndicator();
+    doCursorBlink = !doCursorBlink;
     timerProcessed = true;
+  } else {
+    // Don't show the cursor if an input event occurred.
+    doCursorBlink = false;
   }
 
   update();
@@ -295,7 +303,11 @@ void displayCurrentAnswer() {
   int partialNumber = answerInput.getEditAnswer();
   while (index >= 0) {
     uint8_t digit = (uint8_t)(partialNumber % 10);
-    segments[index] = display.encodeDigit(digit);
+    if (doCursorBlink && index == editIndex) {
+      segments[index] = SEG_D;
+    } else {
+      segments[index] = display.encodeDigit(digit);
+    }
 
     partialNumber /= 10;
     index--;
@@ -319,6 +331,8 @@ void activateSolenoid() {
 }
 
 void blinkTillTheEnd() {
+  // Display the answer once more, to overwrite a possible cursor being displayed.
+  display.showNumberDec(correctAnswer);
   // Capture the event loop and write random values to the RGB LED until we run out of power.
   while (true) {
     analogWrite(LED_R, (int)random(0, 25));
