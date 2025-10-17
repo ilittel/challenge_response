@@ -42,6 +42,8 @@ int calculateAnswer();
 
 void displayCurrentAnswer();
 
+uint8_t segmentValueFor(int index, uint8_t digit);
+
 void displayError();
 
 void activateSolenoid();

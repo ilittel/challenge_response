@@ -290,11 +290,9 @@ void displayCurrentAnswer() {
 
   uint8_t segments[4];
 
-  const uint8_t editIndex = answerInput.getDigitsEntered();
-
   int index = 3;
   // Start setting underscores to the rightmost segments
-  while (index > editIndex) {
+  while (index > answerInput.getDigitsEntered()) {
     segments[index] = SEG_D;
     index--;
   }
@@ -303,17 +301,23 @@ void displayCurrentAnswer() {
   int partialNumber = answerInput.getEditAnswer();
   while (index >= 0) {
     uint8_t digit = (uint8_t)(partialNumber % 10);
-    if (doCursorBlink && index == editIndex) {
-      segments[index] = SEG_D;
-    } else {
-      segments[index] = display.encodeDigit(digit);
-    }
+    segments[index] = segmentValueFor(index, digit);
 
     partialNumber /= 10;
     index--;
   }
 
   display.setSegments(segments);
+}
+
+uint8_t segmentValueFor(int index, uint8_t digit) {
+  // Temporarily display an underscore instead of the current digit value, to create 
+  // the illusion of a blinking cursor.
+  if (doCursorBlink && index == answerInput.getDigitsEntered()) {
+    return SEG_D;
+  } else {
+    return display.encodeDigit(digit);
+  }
 }
 
 void displayError() {
@@ -332,7 +336,7 @@ void activateSolenoid() {
 
 void blinkTillTheEnd() {
   // Display the answer once more, to overwrite a possible cursor being displayed.
-  display.showNumberDec(correctAnswer);
+  display.showNumberDec(correctAnswer, true);
   // Capture the event loop and write random values to the RGB LED until we run out of power.
   while (true) {
     analogWrite(LED_R, (int)random(0, 25));
